@@ -7,17 +7,13 @@ import (
 
 func compareTables(tx *sql.Tx, dstDb string, srcDb string) (interface{}, error) {
 
-	if err := asql.Exec(tx, getTemplate("compare_tables.tpl",
+	return asql.Query(tx, getTemplate("compare_tables.tpl",
 		struct {
-			DstDb string
-			SrcDb string
+			Dst string
+			Src string
 		}{
-			DstDb: dstDb,
-			SrcDb: srcDb,
+			Dst: dstDb,
+			Src: srcDb,
 		},
-	)); err != nil {
-		return nil, err
-	}
-
-	return nil, nil
+	))
 }
