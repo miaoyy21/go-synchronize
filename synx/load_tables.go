@@ -22,41 +22,14 @@ type Table struct {
 
 func loadDatabase(tx *sql.Tx, database string) error {
 
-	// 查询数据库表和字段
-	cols, err := asql.Query(tx, getTemplate("table_columns.tpl", struct{ Database string }{database}))
-	if err != nil {
+	// 重载数据库表和字段
+	if err := asql.Exec(tx, getTemplate("reload_table_columns.tpl", struct{ Database string }{database})); err != nil {
 		return err
 	}
 
-	// 添加数据库表和字段
-	for _, col := range cols {
-		if err := asql.Insert(tx,
-			"INSERT INTO syn_table_column(id, database_name, table_name, column_name, column_type, is_primary, create_at) VALUES (?,?,?,?,?,?,?)",
-			asql.GenerateId(), database, col["table_name"], col["column_name"], col["column_type"], col["is_primary"], asql.GetDateTime(),
-		); err != nil {
-			return err
-		}
-	}
-
-	// 先清空数据库表和触发器
-	if err := asql.Delete(tx, "DELETE FROM syn_table_trigger WHERE database_name = ?", database); err != nil {
+	// 重载数据库表和触发器
+	if err := asql.Exec(tx, getTemplate("reload_table_triggers.tpl", struct{ Database string }{database})); err != nil {
 		return err
-	}
-
-	// 查询数据库表和触发器
-	tris, err := asql.Query(tx, getTemplate("table_triggers.tpl", struct{ Database string }{database}))
-	if err != nil {
-		return err
-	}
-
-	// 添加数据库表和触发器
-	for _, tri := range tris {
-		if err := asql.Insert(tx,
-			"INSERT INTO syn_table_trigger(id, database_name, table_name, trigger_name, create_at) VALUES (?,?,?,?,?)",
-			asql.GenerateId(), database, tri["table_name"], tri["trigger_name"], asql.GetDateTime(),
-		); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -66,7 +39,7 @@ func loadTables(tx *sql.Tx, database string) ([]*Table, error) {
 	tables := make(map[string]*Table)
 
 	// 查询数据库表和字段
-	cols, err := asql.Query(tx, "SELECT * FROM syn_table_column WHERE database_name = ?", database)
+	cols, err := asql.Query(tx, "SELECT table_name, column_name, column_type, is_primary FROM syn_table_column WHERE database_name = ? ORDER BY table_name ASC,column_id ASC", database)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +77,7 @@ func loadTables(tx *sql.Tx, database string) ([]*Table, error) {
 	}
 
 	// 查询数据库表的触发器
-	tris, err := asql.Query(tx, "SELECT * FROM syn_table_trigger WHERE database_name = ?", database)
+	tris, err := asql.Query(tx, "SELECT table_name, trigger_name FROM syn_table_trigger WHERE database_name = ? ORDER BY table_name ASC", database)
 	if err != nil {
 		return nil, err
 	}

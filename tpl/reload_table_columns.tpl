@@ -1,14 +1,17 @@
-DELETE FROM syn_table_column WHERE database_name = {{.Database}};
 
-INSERT INTO syn_table_column(id, database_name, table_name, column_name, column_type, is_primary, create_at)
-SELECT NEWID(),{{.Database}},TT.table_name,TT.column_name,
+-- 清除历史
+DELETE FROM syn_table_column WHERE database_name = '{{.Database}}';
+
+-- 更新记录
+INSERT INTO syn_table_column(id, database_name, table_name, column_id, column_name, column_type, is_primary, create_at)
+SELECT NEWID(), '{{.Database}}', TT.table_name, TT.column_id, TT.column_name,
 	CASE
 		WHEN TT.column_xtype IN ('DECIMAL','NUMERIC') THEN TT.column_xtype+'('+CONVERT(VARCHAR(10),TT.xprec)+','+CONVERT(VARCHAR(10),TT.xscale)+')'
 		WHEN TT.column_xtype IN ('VARCHAR','CHAR','NVARCHAR','NCHAR') THEN TT.column_xtype+'('+CONVERT(VARCHAR(10),TT.length)+')'
 	ELSE TT.COLUMN_XTYPE END AS column_type,
-	TT.is_primary,CONVERT(VARCHAR(20),GETDATE(),120)
+	TT.is_primary, CONVERT(VARCHAR(20),GETDATE(),120)
 FROM (
-	SELECT T.name AS table_name,X.name AS column_name,
+	SELECT T.name AS table_name,X.colid AS column_id,X.name AS column_name,
 		CASE X.xtype
 			WHEN 34 THEN 'IMAGE'
 			WHEN 35 THEN 'TEXT'
@@ -36,5 +39,5 @@ FROM (
 		LEFT JOIN {{.Database}}.sys.SYSCOLUMNS X ON X.id = T.id
 	WHERE T.type = 'U' AND CHARINDEX('_',T.name,0) <> 1
 		AND T.name NOT IN ('pbcatcol','pbcatedt','pbcatfmt','pbcattbl','pbcatvld')
-) TT
+) TT;
 
