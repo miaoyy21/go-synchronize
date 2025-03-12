@@ -1,0 +1,4 @@
+SELECT T.name AS TABLE_NAME,X.name AS COLUMN_TYPE
+FROM sys.SYSOBJECTS T
+	INNER JOIN sys.TRIGGERS X ON X.parent_id  = T.id
+WHERE X.is_disabled  <> '1'

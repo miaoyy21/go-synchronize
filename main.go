@@ -44,6 +44,7 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir("www")))
 
 	// 访问服务
+	http.Handle("/api/tests", base.Handler(db, synx.Tests))
 	http.Handle("/api/md/database", base.Handler(db, synx.MDDataBase))
 
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)

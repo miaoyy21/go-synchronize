@@ -18,21 +18,23 @@ func MDDataBase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interfa
 		id := r.PostFormValue("id")
 		dstDb := r.PostFormValue("dst_db")
 		srcDb := r.PostFormValue("src_db")
+		dstFlag := r.PostFormValue("dst_flag")
+		srcFlag := r.PostFormValue("src_flag")
 
 		switch operation {
 		case "insert":
 			newId := asql.GenerateId()
 
-			query := "INSERT INTO syn_database(id, dst_db, src_db) VALUES (?,?,?)"
-			args := []interface{}{newId, dstDb, srcDb}
+			query := "INSERT INTO syn_database(id, dst_db, src_db, dst_flag, src_flag) VALUES (?,?,?,?,?)"
+			args := []interface{}{newId, dstDb, srcDb, dstFlag, srcFlag}
 			if err := asql.Insert(tx, query, args...); err != nil {
 				return nil, err
 			}
 
 			return map[string]interface{}{"status": "success", "newid": newId}, nil
 		case "update":
-			query := "UPDATE syn_database SET dst_db = ?, src_db = ? WHERE id = ?"
-			args := []interface{}{dstDb, srcDb, id}
+			query := "UPDATE syn_database SET dst_db = ?, src_db = ?, dst_flag = ?, src_flag = ? WHERE id = ?"
+			args := []interface{}{dstDb, srcDb, dstFlag, srcFlag, id}
 			if err := asql.Update(tx, query, args...); err != nil {
 				return nil, err
 			}

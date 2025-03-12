@@ -18,5 +18,6 @@ func Init(dir string) error {
 		return err
 	}
 
+	Config.Dir = dir
 	return nil
 }
