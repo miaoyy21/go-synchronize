@@ -38,7 +38,12 @@ func fnArgs(args ...interface{}) string {
 	buf := new(bytes.Buffer)
 
 	_, file, line, _ := runtime.Caller(2)
-	buf.WriteString(fmt.Sprintf("%s:%d ", strings.Split(file, "/go-synchronize/")[1], line))
+	shortFiles := strings.Split(file, "/go-synchronize/")
+	if len(shortFiles) > 1 {
+		buf.WriteString(fmt.Sprintf("%s:%d ", shortFiles[1], line))
+	} else {
+		buf.WriteString(fmt.Sprintf("%s:%d ", file, line))
+	}
 
 	if len(args) > 0 {
 		buf.WriteString("[")

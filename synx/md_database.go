@@ -2,24 +2,26 @@ package synx
 
 import (
 	"database/sql"
+	"fmt"
 	"go-synchronize/asql"
 	"net/http"
+	"strings"
 )
 
-func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interface{}, err error) {
+func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	switch r.Method {
 	case http.MethodGet:
 		// 查询请求
-		return asql.Query(tx, "SELECT * FROM syn_database ")
+		return asql.Query(tx, "SELECT * FROM syn_database")
 	default:
-		// 提交请求
 		operation := r.PostFormValue("operation")
 
+		// 提交数据
 		id := r.PostFormValue("id")
-		dstDb := r.PostFormValue("dst_db")
-		srcDb := r.PostFormValue("src_db")
-		dstFlag := r.PostFormValue("dst_flag")
-		srcFlag := r.PostFormValue("src_flag")
+		dstDb := strings.TrimSpace(r.PostFormValue("dst_db"))
+		srcDb := strings.TrimSpace(r.PostFormValue("src_db"))
+		dstFlag := strings.TrimSpace(r.PostFormValue("dst_flag"))
+		srcFlag := strings.TrimSpace(r.PostFormValue("src_flag"))
 
 		switch operation {
 		case "insert":
@@ -46,8 +48,24 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interfa
 			}
 
 			return map[string]interface{}{"status": "success"}, nil
+		case "reload":
+			// 重新加载目标数据库的数据库表、字段和触发器
+			if len(dstDb) > 0 {
+				if err := reloadDatabase(tx, dstDb); err != nil {
+					return nil, err
+				}
+			}
+
+			// 重新源目标数据库的数据库表、字段和触发器
+			if len(srcDb) > 0 {
+				if err := reloadDatabase(tx, srcDb); err != nil {
+					return nil, err
+				}
+			}
+
+			return map[string]interface{}{"status": "success"}, nil
 		default:
-			return res, nil
+			return nil, fmt.Errorf("unexpect operation %q", operation)
 		}
 	}
 }
