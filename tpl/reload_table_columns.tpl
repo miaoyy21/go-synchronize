@@ -7,7 +7,7 @@
         INSERT INTO syn_table_column(id, database_name, table_name, column_id, column_name, column_type, is_primary, create_at)
         SELECT NEWID(), '{{.Database}}', TT.table_name, TT.column_id, TT.column_name,
             CASE
-                WHEN TT.column_xtype IN ('DECIMAL','NUMERIC') THEN TT.column_xtype+'('+CONVERT(VARCHAR(10),TT.xprec)+','+CONVERT(VARCHAR(10),TT.xscale)+')'
+                WHEN TT.column_xtype IN ('DECIMAL','NUMERIC') THEN 'NUMERIC'+'('+CONVERT(VARCHAR(10),TT.xprec)+','+CONVERT(VARCHAR(10),TT.xscale)+')'
                 WHEN TT.column_xtype IN ('VARCHAR','CHAR','NVARCHAR','NCHAR') THEN TT.column_xtype+'('+CONVERT(VARCHAR(10),TT.length)+')'
             ELSE TT.COLUMN_XTYPE END AS column_type,
             TT.is_primary, CONVERT(VARCHAR(20),GETDATE(),120)
