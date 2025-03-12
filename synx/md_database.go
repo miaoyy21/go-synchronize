@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func MDDataBase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interface{}, err error) {
+func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interface{}, err error) {
 	switch r.Method {
 	case http.MethodGet:
 		// 查询请求

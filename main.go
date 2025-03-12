@@ -45,7 +45,8 @@ func main() {
 
 	// 访问服务
 	http.Handle("/api/tests", base.Handler(db, synx.Tests))
-	http.Handle("/api/md/database", base.Handler(db, synx.MDDataBase))
+	http.Handle("/api/md/database", base.Handler(db, synx.MDDatabase))
+	http.Handle("/api/md/database_table", base.Handler(db, synx.MDDatabaseTable))
 
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)
 	logrus.Infof("HTTP服务器监听地址: %s ......", addr)

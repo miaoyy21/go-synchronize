@@ -53,13 +53,10 @@ func Handler(db *sql.DB, handler func(db *sql.Tx, w http.ResponseWriter, r *http
 				logrus.Errorf("Handler() Response Write Text Failure %s", err.Error())
 			}
 		} else {
-			bs, err := json.Marshal(res)
-			if err != nil {
-				handlerError(w, err)
-				return
-			}
+			encode := json.NewEncoder(w)
+			encode.SetIndent("", "\t")
 
-			if _, err := w.Write(bs); err != nil {
+			if err := encode.Encode(res); err != nil {
 				logrus.Errorf("Handler() Response Write JSON Failure %s", err.Error())
 			}
 		}

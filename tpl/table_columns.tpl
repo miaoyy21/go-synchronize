@@ -1,12 +1,14 @@
-SELECT TT.TABLE_NAME,TT.COLUMN_NAME,
+DELETE FROM syn_table_column WHERE database_name = {{.Database}};
+
+INSERT INTO syn_table_column(id, database_name, table_name, column_name, column_type, is_primary, create_at)
+SELECT NEWID(),{{.Database}},TT.table_name,TT.column_name,
 	CASE
-		WHEN TT.COLUMN_XTYPE IN ('DECIMAL','NUMERIC') THEN TT.COLUMN_XTYPE+'('+CONVERT(VARCHAR(10),TT.xprec)+','+CONVERT(VARCHAR(10),TT.xscale)+')'
-		WHEN TT.COLUMN_XTYPE IN ('VARCHAR','CHAR','NVARCHAR','NCHAR') THEN TT.COLUMN_XTYPE+'('+CONVERT(VARCHAR(10),TT.length)+')'
-	ELSE TT.COLUMN_XTYPE END AS COLUMN_TYPE,
-	TT.IS_PRIMARY
+		WHEN TT.column_xtype IN ('DECIMAL','NUMERIC') THEN TT.column_xtype+'('+CONVERT(VARCHAR(10),TT.xprec)+','+CONVERT(VARCHAR(10),TT.xscale)+')'
+		WHEN TT.column_xtype IN ('VARCHAR','CHAR','NVARCHAR','NCHAR') THEN TT.column_xtype+'('+CONVERT(VARCHAR(10),TT.length)+')'
+	ELSE TT.COLUMN_XTYPE END AS column_type,
+	TT.is_primary,CONVERT(VARCHAR(20),GETDATE(),120)
 FROM (
-	SELECT T.id AS TABLE_ID,T.name AS TABLE_NAME,
-		X.colid AS COLUMN_ID,X.name AS COLUMN_NAME,
+	SELECT T.name AS table_name,X.name AS column_name,
 		CASE X.xtype
 			WHEN 34 THEN 'IMAGE'
 			WHEN 35 THEN 'TEXT'
@@ -21,7 +23,7 @@ FROM (
 			WHEN 175 THEN 'CHAR'
 			WHEN 231 THEN 'NVARCHAR'
 			WHEN 239 THEN 'NCHAR'
-		ELSE CONVERT(VARCHAR(20),X.xtype) END AS COLUMN_XTYPE,
+		ELSE CONVERT(VARCHAR(20),X.xtype) END AS column_xtype,
 		X.length,X.xprec,X.xscale,
 		CASE WHEN EXISTS (
 			SELECT 1
@@ -29,7 +31,7 @@ FROM (
 				INNER JOIN {{.Database}}.sys.SYSINDEXES X2 ON X2.name = X1.name
 				INNER JOIN {{.Database}}.sys.SYSINDEXKEYS X3 ON X3.id = T.id AND X3.indid = X2.indid AND X3.colid = X.colid
 			WHERE X1.parent_obj = T.id AND X1.xtype = 'PK'
-		) THEN '1' ELSE '0' END AS IS_PRIMARY
+		) THEN '1' ELSE '0' END AS is_primary
 	FROM {{.Database}}.sys.SYSOBJECTS T
 		LEFT JOIN {{.Database}}.sys.SYSCOLUMNS X ON X.id = T.id
 	WHERE T.type = 'U' AND CHARINDEX('_',T.name,0) <> 1

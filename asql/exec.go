@@ -5,18 +5,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func Exec(tx *sql.Tx, query string, args ...interface{}) (int64, error) {
+func Exec(tx *sql.Tx, query string, args ...interface{}) error {
 	logrus.Debugf("%s %s", fnArgs(args...), query)
 
-	res, err := tx.Exec(query, args...)
+	_, err := tx.Exec(query, args...)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	n, err := res.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-
-	return n, nil
+	return nil
 }
