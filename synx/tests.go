@@ -9,7 +9,7 @@ func Tests(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interface{},
 	database := "jz24_scxt"
 
 	// 加载数据库的数据库表、字段和触发器
-	if err := loadDatabase(tx, database); err != nil {
+	if err := reloadDatabase(tx, database); err != nil {
 		return nil, err
 	}
 

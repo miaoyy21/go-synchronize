@@ -7,4 +7,4 @@ INSERT INTO syn_table_trigger(id, database_name, table_name, trigger_name, creat
 SELECT NEWID(), '{{.Database}}', T.name AS table_name, X.name AS trigger_name, CONVERT(VARCHAR(20),GETDATE(),120)
 FROM {{.Database}}.sys.SYSOBJECTS T
 	INNER JOIN {{.Database}}.sys.TRIGGERS X ON X.parent_id  = T.id
-WHERE X.is_disabled  <> '1'
+WHERE X.is_disabled  <> '1';

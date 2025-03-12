@@ -20,7 +20,8 @@ type Table struct {
 	Triggers []string  `json:"triggers"` // 触发器【启用】
 }
 
-func loadDatabase(tx *sql.Tx, database string) error {
+// 重新加载数据库的数据库表、字段和触发器
+func reloadDatabase(tx *sql.Tx, database string) error {
 
 	// 重载数据库表和字段
 	if err := asql.Exec(tx, getTemplate("reload_table_columns.tpl", struct{ Database string }{database})); err != nil {
@@ -35,6 +36,7 @@ func loadDatabase(tx *sql.Tx, database string) error {
 	return nil
 }
 
+// 读取已加载的数据库表和触发器
 func loadTables(tx *sql.Tx, database string) ([]*Table, error) {
 	tables := make(map[string]*Table)
 
