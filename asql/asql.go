@@ -34,7 +34,7 @@ func fnArgs(args ...interface{}) string {
 	buf := new(bytes.Buffer)
 
 	_, file, line, _ := runtime.Caller(2)
-	buf.WriteString(fmt.Sprintf("%s:%d ", strings.Split(file, "/synchronize/")[1], line))
+	buf.WriteString(fmt.Sprintf("%s:%d ", strings.Split(file, "/go-synchronize/")[1], line))
 
 	if len(args) > 0 {
 		buf.WriteString("[")
