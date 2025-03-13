@@ -21,7 +21,7 @@ func MDColumnRule(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 		switch operation {
 		case "update":
 			query := "UPDATE syn_column_rule SET is_ignore = ? WHERE id = ?"
-			if err := asql.Update(tx, query, []interface{}{isIgnore, id}); err != nil {
+			if err := asql.Update(tx, query, isIgnore, id); err != nil {
 				return nil, err
 			}
 

@@ -21,7 +21,7 @@ func MDSynSrcTable(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res inte
 		switch operation {
 		case "update":
 			query := "UPDATE syn_src_table SET is_sync = ? WHERE id = ?"
-			if err := asql.Update(tx, query, []interface{}{isSync, id}); err != nil {
+			if err := asql.Update(tx, query, isSync, id); err != nil {
 				return nil, err
 			}
 

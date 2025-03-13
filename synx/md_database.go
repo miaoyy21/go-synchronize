@@ -12,6 +12,7 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 	switch r.Method {
 	case http.MethodGet:
 		action := r.FormValue("action")
+
 		if strings.EqualFold(action, "options") {
 			rows, err := asql.Query(tx, "SELECT dst_db, src_db FROM syn_database")
 			if err != nil {
