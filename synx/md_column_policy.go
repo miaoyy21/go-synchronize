@@ -22,15 +22,15 @@ func MDColumnPolicy(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interfa
 
 		switch operation {
 		case "insert":
-			newId := asql.GenerateId()
+			newId, at := asql.GenerateId(), asql.GetDateTime()
 
 			query := "INSERT INTO syn_column_policy(id, code, name, description, create_at) VALUES (?,?,?,?,?)"
-			args := []interface{}{newId, code, name, description, asql.GetDateTime()}
+			args := []interface{}{newId, code, name, description, at}
 			if err := asql.Insert(tx, query, args...); err != nil {
 				return nil, err
 			}
 
-			return map[string]interface{}{"status": "success", "newid": newId}, nil
+			return map[string]interface{}{"status": "success", "newid": newId, "create_at": at}, nil
 		case "update":
 			query := "UPDATE syn_column_policy SET code = ?, name = ?, description = ? WHERE id = ?"
 			args := []interface{}{code, name, description, id}
