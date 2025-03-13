@@ -6,14 +6,10 @@ import (
 )
 
 func compareTables(tx *sql.Tx, dstDb string, srcDb string) (interface{}, error) {
-
 	return asql.Query(tx, getTemplate("compare_tables.tpl",
 		struct {
 			Dst string
 			Src string
-		}{
-			Dst: dstDb,
-			Src: srcDb,
-		},
+		}{Dst: dstDb, Src: srcDb},
 	))
 }
