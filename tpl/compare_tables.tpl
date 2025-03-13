@@ -1,7 +1,7 @@
         /**************************************************************** 初始化 ****************************************************************/
         IF NOT EXISTS (SELECT 1 FROM syn_column_policy WHERE code = 'None')
-            INSERT INTO syn_column_policy(id, code, name, description, create_at)
-            VALUES (NEWID(),'None','无','系统默认添加的字段更新策略，表示该字段没设置更新策略',CONVERT(VARCHAR(20),GETDATE(),120));
+            INSERT INTO syn_column_policy(id, code, name, description, order_, create_at)
+            VALUES (NEWID(),'None','-','系统默认添加的字段更新策略，表示该字段没设置更新策略',0,CONVERT(VARCHAR(20),GETDATE(),120));
 
         /**************************************************************** 原始数据库表 ****************************************************************/
         -- 删除没有的原始数据库表
@@ -25,8 +25,8 @@
         WHERE NOT EXISTS (SELECT 1 FROM syn_table_column src WHERE src.database_name = syn.database_name AND src.table_name = syn.table_name AND src.column_name = syn.column_name);
 
         -- 导入原始数据库表的策略
-        INSERT INTO syn_src_policy(id, database_name, table_name, column_name, column_type, is_primary, column_policy, create_at)
-        SELECT NEWID(), src.database_name, src.table_name, src.column_name, src.column_type, src.is_primary, 'None', CONVERT(VARCHAR(20),GETDATE(),120)
+        INSERT INTO syn_src_policy(id, database_name, table_name, column_id, column_name, column_type, is_primary, column_policy, create_at)
+        SELECT NEWID(), src.database_name, src.table_name, src.column_id, src.column_name, src.column_type, src.is_primary, 'None', CONVERT(VARCHAR(20),GETDATE(),120)
         FROM syn_table_column src
         WHERE NOT EXISTS (SELECT 1 FROM syn_src_policy syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name AND syn.column_name = src.column_name);
 

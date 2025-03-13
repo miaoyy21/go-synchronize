@@ -13,7 +13,7 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 	case http.MethodGet:
 		action := r.FormValue("action")
 
-		if strings.EqualFold(action, "options") {
+		if strings.EqualFold(action, "all_options") {
 			rows, err := asql.Query(tx, "SELECT dst_db, src_db FROM syn_database")
 			if err != nil {
 				return nil, err
@@ -22,6 +22,18 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 			res := make([]string, 0, len(rows)*2)
 			for _, row := range rows {
 				res = append(res, row["dst_db"], row["src_db"])
+			}
+
+			return res, nil
+		} else if strings.EqualFold(action, "src_options") {
+			rows, err := asql.Query(tx, "SELECT src_db FROM syn_database")
+			if err != nil {
+				return nil, err
+			}
+
+			res := make([]string, 0, len(rows))
+			for _, row := range rows {
+				res = append(res, row["src_db"])
 			}
 
 			return res, nil

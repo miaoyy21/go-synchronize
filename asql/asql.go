@@ -29,6 +29,10 @@ func GenerateId() string {
 	return bs32.EncodeToString(buf.Bytes())
 }
 
+func GenerateOrderId() int64 {
+	return time.Now().UnixNano()
+}
+
 func GetDateTime() string {
 	return time.Now().Format("2006-01-02 15:04:05")
 }

@@ -49,9 +49,8 @@ func main() {
 	http.Handle("/api/syn/md/database_table", base.Handler(db, synx.MDDatabaseTable))
 	http.Handle("/api/syn/md/column_rule", base.Handler(db, synx.MDColumnRule))
 	http.Handle("/api/syn/md/column_policy", base.Handler(db, synx.MDColumnPolicy))
-
-	http.Handle("/api/syn/exe/src_table", base.Handler(db, synx.MDSynSrcTable))
-	http.Handle("/api/syn/exe/src_policy", base.Handler(db, synx.MDSynSrcPolicy))
+	http.Handle("/api/syn/md/src_table", base.Handler(db, synx.MDSrcTable))
+	http.Handle("/api/syn/md/src_policy", base.Handler(db, synx.MdSrcPolicy))
 
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)
 	logrus.Infof("HTTP服务器监听地址: %s ......", addr)
