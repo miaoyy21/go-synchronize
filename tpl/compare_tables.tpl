@@ -1,4 +1,7 @@
-
+        /**************************************************************** 初始化 ****************************************************************/
+        IF NOT EXISTS (SELECT 1 FROM syn_column_policy WHERE code = 'None')
+            INSERT INTO syn_column_policy(id, code, name, description, create_at)
+            VALUES (NEWID(),'None','无','系统默认添加的字段更新策略，表示该字段没设置更新策略',CONVERT(VARCHAR(20),GETDATE(),120));
 
         /**************************************************************** 原始数据库表 ****************************************************************/
         -- 删除没有的原始数据库表
@@ -12,8 +15,8 @@
         FROM (
             SELECT DISTINCT src.database_name, src.table_name
             FROM syn_table_column src
-            WHERE NOT EXISTS (SELECT 1 FROM syn_src_table syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name);
-        ) TT
+            WHERE NOT EXISTS (SELECT 1 FROM syn_src_table syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name)
+        ) TT;
 
         /**************************************************************** 原始数据库表的策略 ****************************************************************/
         -- 删除没有的原始数据库表的策略
@@ -23,7 +26,7 @@
 
         -- 导入原始数据库表的策略
         INSERT INTO syn_src_policy(id, database_name, table_name, column_name, column_type, is_primary, column_policy, create_at)
-        SELECT NEWID(), src.database_name, src.table_name, src.column_name, src.column_type, src.is_primary, NULL, CONVERT(VARCHAR(20),GETDATE(),120)
+        SELECT NEWID(), src.database_name, src.table_name, src.column_name, src.column_type, src.is_primary, 'None', CONVERT(VARCHAR(20),GETDATE(),120)
         FROM syn_table_column src
         WHERE NOT EXISTS (SELECT 1 FROM syn_src_policy syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name AND syn.column_name = src.column_name);
 
@@ -50,8 +53,8 @@
             FROM syn_table_column src
                 INNER JOIN syn_table_column dst ON dst.database_name = '{{.Dst}}' AND dst.table_name = src.table_name AND dst.column_name = src.column_name
             WHERE src.database_name = '{{.Src}}' AND dst.column_type <> src.column_type
-                AND NOT EXISTS (SELECT 1 FROM syn_column_rule rule WHERE rule.dst_column_type = dst.column_type AND rule.src_column_type = src.column_type)
-        );
+                AND NOT EXISTS (SELECT 1 FROM syn_column_rule ruler WHERE ruler.dst_column_type = dst.column_type AND ruler.src_column_type = src.column_type)
+        ) TT;
 
         /**************************************************************** 查询字段差异 ****************************************************************/
         SELECT TT.operation, TT.table_name, TT.column_name, TT.column_type, TT.is_primary, TT.column_type_org
@@ -74,6 +77,6 @@
             FROM syn_table_column src
                 INNER JOIN syn_table_column dst ON dst.database_name = '{{.Dst}}' AND dst.table_name = src.table_name AND dst.column_name = src.column_name
             WHERE src.database_name = '{{.Src}}' AND dst.column_type <> src.column_type
-                AND NOT EXISTS (SELECT 1 FROM syn_column_rule rule WHERE rule.dst_column_type = dst.column_type AND rule.src_column_type = src.column_type AND rule.is_ignore = '1')
+                AND NOT EXISTS (SELECT 1 FROM syn_column_rule ruler WHERE ruler.dst_column_type = dst.column_type AND ruler.src_column_type = src.column_type AND ruler.is_ignore = '1')
         ) TT
-        ORDER BY TT.operation ASC, TT.table_name ASC, TT.column_id ASC
+        ORDER BY TT.operation ASC, TT.table_name ASC, TT.column_id ASC;
