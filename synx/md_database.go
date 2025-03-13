@@ -11,6 +11,21 @@ import (
 func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	switch r.Method {
 	case http.MethodGet:
+		action := r.FormValue("action")
+		if strings.EqualFold(action, "options") {
+			rows, err := asql.Query(tx, "SELECT dst_db, src_db FROM syn_database")
+			if err != nil {
+				return nil, err
+			}
+
+			res := make([]string, 0, len(rows)*2)
+			for _, row := range rows {
+				res = append(res, row["dst_db"], row["src_db"])
+			}
+
+			return res, nil
+		}
+
 		return asql.Query(tx, "SELECT * FROM syn_database")
 	default:
 		operation := r.PostFormValue("operation")
