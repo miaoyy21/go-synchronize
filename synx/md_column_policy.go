@@ -10,7 +10,6 @@ import (
 func MDColumnPolicy(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	switch r.Method {
 	case http.MethodGet:
-		// 查询请求
 		return asql.Query(tx, "SELECT * FROM syn_column_policy")
 	default:
 		operation := r.PostFormValue("operation")

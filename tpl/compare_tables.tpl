@@ -1,5 +1,33 @@
 
 
+        /**************************************************************** 原始数据库表 ****************************************************************/
+        -- 删除没有的原始数据库表
+        DELETE syn
+        FROM syn_src_table syn
+        WHERE NOT EXISTS (SELECT 1 FROM syn_table_column src WHERE src.database_name = syn.database_name AND src.table_name = syn.table_name);
+
+        -- 导入原始数据库表
+        INSERT INTO syn_src_table(id, database_name, table_name, is_sync, create_at)
+        SELECT NEWID(), TT.database_name, TT.table_name, '1' AS is_sync, CONVERT(VARCHAR(20),GETDATE(),120)
+        FROM (
+            SELECT DISTINCT src.database_name, src.table_name
+            FROM syn_table_column src
+            WHERE NOT EXISTS (SELECT 1 FROM syn_src_table syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name);
+        ) TT
+
+        /**************************************************************** 原始数据库表的策略 ****************************************************************/
+        -- 删除没有的原始数据库表的策略
+        DELETE syn
+        FROM syn_src_policy syn
+        WHERE NOT EXISTS (SELECT 1 FROM syn_table_column src WHERE src.database_name = syn.database_name AND src.table_name = syn.table_name AND src.column_name = syn.column_name);
+
+        -- 导入原始数据库表的策略
+        INSERT INTO syn_src_policy(id, database_name, table_name, column_name, column_type, is_primary, column_policy, create_at)
+        SELECT NEWID(), src.database_name, src.table_name, src.column_name, src.column_type, src.is_primary, NULL, CONVERT(VARCHAR(20),GETDATE(),120)
+        FROM syn_table_column src
+        WHERE NOT EXISTS (SELECT 1 FROM syn_src_policy syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name AND syn.column_name = src.column_name);
+
+        /**************************************************************** 字段转换规则 ****************************************************************/
         -- 导入字段转换规则
         INSERT INTO syn_column_rule(id, dst_column_type, src_column_type, is_ignore, create_at)
         SELECT NEWID(), dst_column_type, src_column_type,
@@ -25,7 +53,7 @@
                 AND NOT EXISTS (SELECT 1 FROM syn_column_rule rule WHERE rule.dst_column_type = dst.column_type AND rule.src_column_type = src.column_type)
         );
 
-        -- 差异对比
+        /**************************************************************** 查询字段差异 ****************************************************************/
         SELECT TT.operation, TT.table_name, TT.column_name, TT.column_type, TT.is_primary, TT.column_type_org
         FROM (
             /* [1] 新增数据库表 */

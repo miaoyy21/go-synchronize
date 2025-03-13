@@ -11,7 +11,6 @@ import (
 func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	switch r.Method {
 	case http.MethodGet:
-		// 查询请求
 		return asql.Query(tx, "SELECT * FROM syn_database")
 	default:
 		operation := r.PostFormValue("operation")
