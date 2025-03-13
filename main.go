@@ -49,6 +49,8 @@ func main() {
 	http.Handle("/api/md/database_table", base.Handler(db, synx.MDDatabaseTable))
 	http.Handle("/api/md/column_rule", base.Handler(db, synx.MDColumnRule))
 
+	http.Handle("/api/md/column_policy", base.Handler(db, synx.MDColumnPolicy))
+
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)
 	logrus.Infof("HTTP服务器监听地址: %s ......", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
