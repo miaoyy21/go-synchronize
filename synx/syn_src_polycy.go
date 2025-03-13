@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func MDSynSrcTable(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interface{}, err error) {
+func MDSynSrcPolicy(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interface{}, err error) {
 	switch r.Method {
 	case http.MethodGet:
 		return asql.Query(tx, "SELECT * FROM syn_src_table")
