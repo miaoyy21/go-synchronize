@@ -17,11 +17,12 @@ func MDColumnRule(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 		// 提交数据
 		id := r.PostFormValue("id")
 		isIgnore := r.PostFormValue("is_ignore")
+		description := r.PostFormValue("description")
 
 		switch operation {
 		case "update":
-			query := "UPDATE syn_column_rule SET is_ignore = ? WHERE id = ?"
-			if err := asql.Update(tx, query, isIgnore, id); err != nil {
+			query := "UPDATE syn_column_rule SET is_ignore = ?, description = ? WHERE id = ?"
+			if err := asql.Update(tx, query, isIgnore, description, id); err != nil {
 				return nil, err
 			}
 
