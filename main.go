@@ -45,13 +45,13 @@ func main() {
 
 	// 访问服务
 	http.Handle("/api/tests", base.Handler(db, synx.Tests))
-	http.Handle("/api/md/database", base.Handler(db, synx.MDDatabase))
-	http.Handle("/api/md/database_table", base.Handler(db, synx.MDDatabaseTable))
-	http.Handle("/api/md/column_rule", base.Handler(db, synx.MDColumnRule))
+	http.Handle("/api/syn/md/database", base.Handler(db, synx.MDDatabase))
+	http.Handle("/api/syn/md/database_table", base.Handler(db, synx.MDDatabaseTable))
+	http.Handle("/api/syn/md/column_rule", base.Handler(db, synx.MDColumnRule))
 
-	http.Handle("/api/md/column_policy", base.Handler(db, synx.MDColumnPolicy))
-	http.Handle("/api/syn/src_table", base.Handler(db, synx.MDSynSrcTable))
-	http.Handle("/api/syn/src_policy", base.Handler(db, synx.MDSynSrcPolicy))
+	http.Handle("/api/syn/md/column_policy", base.Handler(db, synx.MDColumnPolicy))
+	http.Handle("/api/syn/exe/src_table", base.Handler(db, synx.MDSynSrcTable))
+	http.Handle("/api/syn/exe/src_policy", base.Handler(db, synx.MDSynSrcPolicy))
 
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)
 	logrus.Infof("HTTP服务器监听地址: %s ......", addr)
