@@ -56,7 +56,7 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 				}
 			}
 
-			// 重新源目标数据库的数据库表、字段和触发器
+			// 重新加载原始数据库的数据库表、字段和触发器
 			if len(srcDb) > 0 {
 				if err := reloadDatabase(tx, srcDb); err != nil {
 					return nil, err
@@ -65,7 +65,7 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 
 			return map[string]interface{}{"status": "success"}, nil
 		case "compare":
-			return nil, nil
+			return compareTables(tx, id)
 		default:
 			return nil, fmt.Errorf("unexpect operation %q", operation)
 		}

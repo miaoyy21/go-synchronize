@@ -1,7 +1,7 @@
 
 
         -- 导入字段转换规则
-        INSERT INTO syn_column_rule(id, dst_column_type, src_column_type, is_ignore)
+        INSERT INTO syn_column_rule(id, dst_column_type, src_column_type, is_ignore, create_at)
         SELECT NEWID(), dst_column_type, src_column_type,
             CASE WHEN (
                 ( dst_column_type LIKE 'CHAR%' AND src_column_type LIKE 'CHAR%' AND dst_column_length > src_column_length )
@@ -15,7 +15,7 @@
                 ( dst_column_type = 'INT' AND src_column_type = 'TINYINT' )
                     OR
                 ( dst_column_type = 'DATETIME' AND src_column_type = 'DATE')
-            ) THEN '1' ELSE '0' END AS is_ignore
+            ) THEN '1' ELSE '0' END AS is_ignore, CONVERT(VARCHAR(20),GETDATE(),120)
         FROM (
             SELECT DISTINCT dst.column_type AS dst_column_type, dst.column_length AS dst_column_length,
                 src.column_type AS src_column_type, src.column_length AS src_column_length
