@@ -1,3 +1,5 @@
+
+
         /**************************************************************** 初始化 ****************************************************************/
         IF NOT EXISTS (SELECT 1 FROM syn_column_policy WHERE code = 'None')
             INSERT INTO syn_column_policy(id, code, name, description, order_, create_at)
@@ -44,6 +46,8 @@
                 ( dst_column_type LIKE 'NVARCHAR%' AND src_column_type LIKE 'NVARCHAR%' AND dst_column_length > src_column_length )
                     OR
                 ( dst_column_type = 'INT' AND src_column_type = 'TINYINT' )
+                    OR
+                ( dst_column_type = 'BIGINT' AND src_column_type LIKE '%INT%' )
                     OR
                 ( dst_column_type = 'DATETIME' AND src_column_type = 'DATE')
             ) THEN '1' ELSE '0' END AS is_ignore, CONVERT(VARCHAR(20),GETDATE(),120)

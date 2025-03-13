@@ -23,6 +23,7 @@
                     WHEN 62 THEN 'FLOAT'
                     WHEN 106 THEN 'DECIMAL'
                     WHEN 108 THEN 'NUMERIC'
+                    WHEN 127 THEN 'BIGINT'
                     WHEN 167 THEN 'VARCHAR'
                     WHEN 175 THEN 'CHAR'
                     WHEN 231 THEN 'NVARCHAR'
