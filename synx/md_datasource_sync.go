@@ -48,8 +48,10 @@ func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (inter
 
 			return map[string]interface{}{"status": "success", "newid": newId, "sync_status": syncStatus, "create_at": at}, nil
 		case "update":
-			query := "UPDATE syn_datasource_sync SET src_ds_code = ?, src_sql = ?, src_id_field = ?, dst_ds_code = ?, dst_sql = ?, dst_table = ?, dst_id_field = ? WHERE id = ?"
-			args := []interface{}{srcDsCode, srcSql, srcIdField, dstDsCode, dstSql, dstTable, dstIdField, id}
+			syncStatus := r.PostFormValue("sync_status")
+
+			query := "UPDATE syn_datasource_sync SET src_ds_code = ?, src_sql = ?, src_id_field = ?, dst_ds_code = ?, dst_sql = ?, dst_table = ?, dst_id_field = ?,sync_status = ? WHERE id = ?"
+			args := []interface{}{srcDsCode, srcSql, srcIdField, dstDsCode, dstSql, dstTable, dstIdField, syncStatus, id}
 			if err := asql.Update(tx, query, args...); err != nil {
 				return nil, err
 			}
