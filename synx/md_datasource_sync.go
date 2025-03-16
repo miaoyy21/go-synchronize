@@ -29,15 +29,15 @@ func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (inter
 
 		switch operation {
 		case "insert":
-			newId, at := asql.GenerateId(), asql.GetDateTime()
+			newId, syncStatus, at := asql.GenerateId(), "Prepared", asql.GetDateTime()
 
-			query := "INSERT INTO syn_datasource_sync(id, src_ds_code, src_sql, is_sync, dst_ds_code, dst_sql, dst_table, order_, create_at) VALUES (?,?,?,?,?,?,?,?,?)"
-			args := []interface{}{newId, srcDsCode, srcSql, isSync, dstDsCode, dstSql, dstTable, asql.GenerateOrderId(), at}
+			query := "INSERT INTO syn_datasource_sync(id, src_ds_code, src_sql, is_sync, dst_ds_code, dst_sql, dst_table, sync_status, order_, create_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+			args := []interface{}{newId, srcDsCode, srcSql, isSync, dstDsCode, dstSql, dstTable, syncStatus, asql.GenerateOrderId(), at}
 			if err := asql.Insert(tx, query, args...); err != nil {
 				return nil, err
 			}
 
-			return map[string]interface{}{"status": "success", "newid": newId, "create_at": at}, nil
+			return map[string]interface{}{"status": "success", "newid": newId, "sync_status": syncStatus, "create_at": at}, nil
 		case "update":
 			query := "UPDATE syn_datasource_sync SET src_ds_code = ?, src_sql = ?, is_sync = ?, dst_ds_code = ?, dst_sql = ?, dst_table = ? WHERE id = ?"
 			args := []interface{}{srcDsCode, srcSql, isSync, dstDsCode, dstSql, dstTable, id}
