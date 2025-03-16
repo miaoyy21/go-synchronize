@@ -7,6 +7,14 @@ import (
 	"net/http"
 )
 
+type SyncStatus string
+
+const (
+	SyncStatusStopped   = "Stopped"
+	SyncStatusWaiting   = "Waiting"
+	SyncStatusExecuting = "Executing"
+)
+
 func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	switch r.Method {
 	case http.MethodGet:
@@ -18,10 +26,11 @@ func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (inter
 		id := r.PostFormValue("id")
 		srcDsCode := r.PostFormValue("src_ds_code")
 		srcSql := r.PostFormValue("src_sql")
-		isSync := r.PostFormValue("is_sync")
+		srcIdField := r.PostFormValue("src_id_field")
 		dstDsCode := r.PostFormValue("dst_ds_code")
 		dstSql := r.PostFormValue("dst_sql")
 		dstTable := r.PostFormValue("dst_table")
+		dstIdField := r.PostFormValue("dst_id_field")
 
 		moveId := r.PostFormValue("webix_move_id")
 		moveIndex := r.PostFormValue("webix_move_index")
@@ -29,18 +38,18 @@ func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (inter
 
 		switch operation {
 		case "insert":
-			newId, syncStatus, at := asql.GenerateId(), "Prepared", asql.GetDateTime()
+			newId, syncStatus, at := asql.GenerateId(), SyncStatusStopped, asql.GetDateTime()
 
-			query := "INSERT INTO syn_datasource_sync(id, src_ds_code, src_sql, is_sync, dst_ds_code, dst_sql, dst_table, sync_status, order_, create_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
-			args := []interface{}{newId, srcDsCode, srcSql, isSync, dstDsCode, dstSql, dstTable, syncStatus, asql.GenerateOrderId(), at}
+			query := "INSERT INTO syn_datasource_sync(id, src_ds_code, src_sql, src_id_field, dst_ds_code, dst_sql, dst_table, dst_id_field, sync_status, order_, create_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+			args := []interface{}{newId, srcDsCode, srcSql, srcIdField, dstDsCode, dstSql, dstTable, dstIdField, syncStatus, asql.GenerateOrderId(), at}
 			if err := asql.Insert(tx, query, args...); err != nil {
 				return nil, err
 			}
 
 			return map[string]interface{}{"status": "success", "newid": newId, "sync_status": syncStatus, "create_at": at}, nil
 		case "update":
-			query := "UPDATE syn_datasource_sync SET src_ds_code = ?, src_sql = ?, is_sync = ?, dst_ds_code = ?, dst_sql = ?, dst_table = ? WHERE id = ?"
-			args := []interface{}{srcDsCode, srcSql, isSync, dstDsCode, dstSql, dstTable, id}
+			query := "UPDATE syn_datasource_sync SET src_ds_code = ?, src_sql = ?, src_id_field = ?, dst_ds_code = ?, dst_sql = ?, dst_table = ?, dst_id_field = ? WHERE id = ?"
+			args := []interface{}{srcDsCode, srcSql, srcIdField, dstDsCode, dstSql, dstTable, dstIdField, id}
 			if err := asql.Update(tx, query, args...); err != nil {
 				return nil, err
 			}

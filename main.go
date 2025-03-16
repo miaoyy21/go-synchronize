@@ -40,6 +40,9 @@ func main() {
 	}
 	logrus.Info("连接数据库成功 ...")
 
+	// 数据同步服务
+	go synx.Run(db)
+
 	// 静态文件
 	http.Handle("/", http.FileServer(http.Dir("www")))
 
