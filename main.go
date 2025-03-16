@@ -52,6 +52,9 @@ func main() {
 	http.Handle("/api/syn/md/src_table", base.Handler(db, synx.MDSrcTable))
 	http.Handle("/api/syn/md/src_policy", base.Handler(db, synx.MdSrcPolicy))
 
+	http.Handle("/api/syn/md/datasource", base.Handler(db, synx.MDDatasource))
+	http.Handle("/api/syn/md/datasource_sync", base.Handler(db, synx.MDDatasourceSync))
+
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)
 	logrus.Infof("HTTP服务器监听地址: %s ......", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
