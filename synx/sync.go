@@ -37,7 +37,7 @@ func Run(db *sql.DB) {
 			if err := db.QueryRow(query, SyncStatusExecuting, SyncStatusWaiting).
 				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField); err != nil {
 				if err == sql.ErrNoRows {
-					logrus.Debug("<<< empty tasks found >>>")
+					logrus.Debug("<<< empty sync tasks found >>>")
 					continue
 				}
 
@@ -53,14 +53,14 @@ func Run(db *sql.DB) {
 			if err := run(srcDriver, srcDatasource, srcSql, dstDriver, dstDatasource, dstSql, dstTable, dstIdField); err != nil {
 				logrus.Errorf("run() failure :: %s", err.Error())
 
-				if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ?", SyncStatusWaiting, id); err != nil {
+				if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ? AND sync_status = ? ", SyncStatusWaiting, id, SyncStatusExecuting); err != nil {
 					logrus.Errorf("asql.Update() failure :: %s", err.Error())
 				}
 
 				continue
 			}
 
-			if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ?, sync_at = ? WHERE id = ?", SyncStatusWaiting, asql.GetDateTime(), id); err != nil {
+			if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ?, sync_at = ? WHERE id = ? AND sync_status = ?", SyncStatusWaiting, asql.GetDateTime(), id, SyncStatusExecuting); err != nil {
 				logrus.Errorf("asql.Update() failure :: %s", err.Error())
 				continue
 			}
