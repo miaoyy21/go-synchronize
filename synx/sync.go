@@ -21,11 +21,11 @@ func Run(db *sql.DB) {
 		case <-ticker.C:
 			logrus.Debugf("执行定时任务 ... ")
 
-			var id, srcDriver, srcDatasource, srcSql, srcIdField string
+			var id, srcDriver, srcDatasource, srcSql string
 			var dstDriver, dstDatasource, dstSql, dstTable, dstIdField string
 
 			query := "SELECT TA.id, \n" +
-				"	M1.driver AS src_driver, M1.datasource AS src_datasource, TA.src_sql, TA.src_id_field, \n" +
+				"	M1.driver AS src_driver, M1.datasource AS src_datasource, TA.src_sql, \n" +
 				"	M2.driver AS dst_driver, M2.datasource AS dst_datasource, TA.dst_sql, TA.dst_table, TA.dst_id_field \n" +
 				"FROM syn_datasource_sync TA \n" +
 				"	INNER JOIN syn_datasource M1 ON TA.src_ds_code = M1.code \n" +
@@ -35,7 +35,7 @@ func Run(db *sql.DB) {
 				"ORDER BY TA.sync_at ASC,TA.order_ ASC"
 
 			if err := db.QueryRow(query, SyncStatusExecuting, SyncStatusWaiting).
-				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &srcIdField, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField); err != nil {
+				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField); err != nil {
 				if err == sql.ErrNoRows {
 					logrus.Debug("<<< empty tasks found >>>")
 					continue
@@ -50,7 +50,7 @@ func Run(db *sql.DB) {
 				continue
 			}
 
-			if err := run(srcDriver, srcDatasource, srcSql, srcIdField, dstDriver, dstDatasource, dstSql, dstTable, dstIdField); err != nil {
+			if err := run(srcDriver, srcDatasource, srcSql, dstDriver, dstDatasource, dstSql, dstTable, dstIdField); err != nil {
 				logrus.Errorf("run() failure :: %s", err.Error())
 
 				if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ?", SyncStatusWaiting, id); err != nil {
@@ -68,7 +68,7 @@ func Run(db *sql.DB) {
 	}
 }
 
-func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField string) error {
+func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField string) error {
 	// src
 	srcTx, err := initDB(srcDriver, srcDatasource)
 	if err != nil {
@@ -88,7 +88,7 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 	}
 
 	// src cols && rows
-	_, srcHashed, srcRows, err := asql.QueryHashed(srcTx, srcIdField, srcSql)
+	_, srcHashed, srcRows, err := asql.QueryHashed(srcTx, dstIdField, srcSql)
 	if err != nil {
 		rollback()
 		return err

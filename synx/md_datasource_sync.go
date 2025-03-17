@@ -26,7 +26,6 @@ func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (inter
 		id := r.PostFormValue("id")
 		srcDsCode := r.PostFormValue("src_ds_code")
 		srcSql := r.PostFormValue("src_sql")
-		srcIdField := r.PostFormValue("src_id_field")
 		dstDsCode := r.PostFormValue("dst_ds_code")
 		dstSql := r.PostFormValue("dst_sql")
 		dstTable := r.PostFormValue("dst_table")
@@ -40,8 +39,8 @@ func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (inter
 		case "insert":
 			newId, syncStatus, at := asql.GenerateId(), SyncStatusStopped, asql.GetDateTime()
 
-			query := "INSERT INTO syn_datasource_sync(id, src_ds_code, src_sql, src_id_field, dst_ds_code, dst_sql, dst_table, dst_id_field, sync_status, order_, create_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
-			args := []interface{}{newId, srcDsCode, srcSql, srcIdField, dstDsCode, dstSql, dstTable, dstIdField, syncStatus, asql.GenerateOrderId(), at}
+			query := "INSERT INTO syn_datasource_sync(id, src_ds_code, src_sql, dst_ds_code, dst_sql, dst_table, dst_id_field, sync_status, order_, create_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
+			args := []interface{}{newId, srcDsCode, srcSql, dstDsCode, dstSql, dstTable, dstIdField, syncStatus, asql.GenerateOrderId(), at}
 			if err := asql.Insert(tx, query, args...); err != nil {
 				return nil, err
 			}
@@ -50,8 +49,8 @@ func MDDatasourceSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (inter
 		case "update":
 			syncStatus := r.PostFormValue("sync_status")
 
-			query := "UPDATE syn_datasource_sync SET src_ds_code = ?, src_sql = ?, src_id_field = ?, dst_ds_code = ?, dst_sql = ?, dst_table = ?, dst_id_field = ?,sync_status = ? WHERE id = ?"
-			args := []interface{}{srcDsCode, srcSql, srcIdField, dstDsCode, dstSql, dstTable, dstIdField, syncStatus, id}
+			query := "UPDATE syn_datasource_sync SET src_ds_code = ?, src_sql = ?, dst_ds_code = ?, dst_sql = ?, dst_table = ?, dst_id_field = ?,sync_status = ? WHERE id = ?"
+			args := []interface{}{srcDsCode, srcSql, dstDsCode, dstSql, dstTable, dstIdField, syncStatus, id}
 			if err := asql.Update(tx, query, args...); err != nil {
 				return nil, err
 			}
