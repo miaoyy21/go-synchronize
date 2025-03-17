@@ -14,33 +14,27 @@ import (
 func Run(db *sql.DB) {
 	ticker := time.NewTicker(15 * time.Second)
 
+	_, _ = db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE sync_status = ?", SyncStatusWaiting, SyncStatusExecuting)
+
 	for {
 		select {
 		case <-ticker.C:
 			logrus.Debugf("执行定时任务 ... ")
 
-			tx, err := db.Begin()
-			if err != nil {
-				logrus.Errorf("db.Begin() failure :: %s", err.Error())
-				continue
-			}
-
 			var id, srcDriver, srcDatasource, srcSql, srcIdField string
 			var dstDriver, dstDatasource, dstSql, dstTable, dstIdField string
 
-			query := `
-			SELECT TA.id, 
-				M1.driver AS src_driver, M1.datasource AS src_datasource, TA.src_sql, TA.src_id_field,
-				M2.driver AS dst_driver, M2.datasource AS dst_datasource, TA.dst_sql, TA.dst_table, TA.dst_id_field
-			FROM syn_datasource_sync TA 
-				INNER JOIN syn_datasource M1 ON TA.src_ds_code = M1.code
-				INNER JOIN syn_datasource M2 ON TA.dst_ds_code = M2.code
-			WHERE NOT EXISTS (SELECT 1 FROM syn_datasource_sync TB WHERE TB.sync_status = ?)
-				AND TA.sync_status = ?
-			ORDER BY TA.sync_at ASC,TA.order_ ASC
-			`
+			query := "SELECT TA.id, \n" +
+				"	M1.driver AS src_driver, M1.datasource AS src_datasource, TA.src_sql, TA.src_id_field, \n" +
+				"	M2.driver AS dst_driver, M2.datasource AS dst_datasource, TA.dst_sql, TA.dst_table, TA.dst_id_field \n" +
+				"FROM syn_datasource_sync TA \n" +
+				"	INNER JOIN syn_datasource M1 ON TA.src_ds_code = M1.code \n" +
+				"	INNER JOIN syn_datasource M2 ON TA.dst_ds_code = M2.code \n" +
+				"WHERE NOT EXISTS (SELECT 1 FROM syn_datasource_sync TB WHERE TB.sync_status = ?) \n" +
+				"	AND TA.sync_status = ? \n" +
+				"ORDER BY TA.sync_at ASC,TA.order_ ASC"
 
-			if err := asql.QueryRow(tx, query, SyncStatusExecuting, SyncStatusWaiting).
+			if err := db.QueryRow(query, SyncStatusExecuting, SyncStatusWaiting).
 				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &srcIdField, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField); err != nil {
 				if err == sql.ErrNoRows {
 					logrus.Debug("<<< empty tasks found >>>")
@@ -48,29 +42,28 @@ func Run(db *sql.DB) {
 				}
 
 				logrus.Errorf("asql.QueryRow() failure :: %s", err.Error())
-				_ = tx.Rollback()
 				continue
 			}
 
-			if err := asql.Update(tx, "UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ?", SyncStatusExecuting, id); err != nil {
+			if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ?", SyncStatusExecuting, id); err != nil {
 				logrus.Errorf("asql.Update() failure :: %s", err.Error())
-				_ = tx.Rollback()
 				continue
 			}
 
 			if err := run(srcDriver, srcDatasource, srcSql, srcIdField, dstDriver, dstDatasource, dstSql, dstTable, dstIdField); err != nil {
 				logrus.Errorf("run() failure :: %s", err.Error())
-				_ = tx.Rollback()
+
+				if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ?", SyncStatusWaiting, id); err != nil {
+					logrus.Errorf("asql.Update() failure :: %s", err.Error())
+				}
+
 				continue
 			}
 
-			if err := asql.Update(tx, "UPDATE syn_datasource_sync SET sync_status = ?, sync_at = ? WHERE id = ?", SyncStatusWaiting, asql.GetDateTime(), id); err != nil {
+			if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ?, sync_at = ? WHERE id = ?", SyncStatusWaiting, asql.GetDateTime(), id); err != nil {
 				logrus.Errorf("asql.Update() failure :: %s", err.Error())
-				_ = tx.Rollback()
 				continue
 			}
-
-			_ = tx.Commit()
 		}
 	}
 }
@@ -100,6 +93,7 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 		rollback()
 		return err
 	}
+	logrus.Debugf("source %d rows .", len(srcHashed))
 
 	// dst cols && rows
 	dstCols, dstHashed, _, err := asql.QueryHashed(dstTx, dstIdField, dstSql)
@@ -107,9 +101,11 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 		rollback()
 		return err
 	}
+	logrus.Debugf("target %d rows .", len(dstHashed))
 
 	// compare src && dst Map
 	added, changed, removed := base.CompareMap(dstHashed, srcHashed)
+	logrus.Debugf("compare :: added %d rows, changed %d rows, and removed %d rows .", len(added), len(changed), len(removed))
 	if len(added)+len(changed)+len(removed) < 1 {
 		return nil
 	}
@@ -131,11 +127,12 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 			args = append(args, value)
 		}
 
-		if err := asql.Insert(dstTx, query, args...); err != nil {
+		if _, err := dstTx.Exec(query, args...); err != nil {
 			rollback()
 			return err
 		}
 	}
+	logrus.Debugf("%d rows added ...", len(added))
 
 	// Changed
 	for key := range changed {
@@ -153,20 +150,22 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 		args = append(args, key)
 
 		query := fmt.Sprintf("UPDATE %s SET %s = ? WHERE %s = ?", dstTable, strings.Join(dstCols, " = ?,"), dstIdField)
-		if err := asql.Update(dstTx, query, args...); err != nil {
+		if _, err := dstTx.Exec(query, args...); err != nil {
 			rollback()
 			return err
 		}
 	}
+	logrus.Debugf("%d rows changed ...", len(added))
 
 	// Removed
 	for key := range removed {
 		query := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", dstTable, dstIdField)
-		if err := asql.Delete(dstTx, query, key); err != nil {
+		if _, err := dstTx.Exec(query, key); err != nil {
 			rollback()
 			return err
 		}
 	}
+	logrus.Debugf("%d rows removed ...", len(added))
 
 	return dstTx.Commit()
 }
