@@ -56,9 +56,9 @@ func main() {
 	http.Handle("/api/syn/md/src_policy", base.Handler(db, synx.MdSrcPolicy))
 
 	http.Handle("/api/syn/md/datasource", base.Handler(db, synx.MDDatasource))
-	http.Handle("/api/syn/exe/datasource_sync", base.Handler(db, synx.MDDatasourceSync))
-	http.Handle("/api/syn/exe/table_sync", base.Handler(db, synx.MDTableSync))
-	http.Handle("/api/syn/exe/sql_sync", base.Handler(db, synx.MDSqlSync))
+	http.Handle("/api/syn/exe/datasource_sync", base.Handler(db, synx.ExeDatasourceSync))
+	http.Handle("/api/syn/exe/table_sync", base.Handler(db, synx.ExeTableSync))
+	http.Handle("/api/syn/exe/sql_sync", base.Handler(db, synx.ExeSqlSync))
 
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)
 	logrus.Infof("HTTP服务器监听地址: %s ......", addr)

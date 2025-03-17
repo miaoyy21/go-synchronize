@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func MDTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
+func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	switch r.Method {
 	case http.MethodGet:
 		return asql.Query(tx, "SELECT * FROM syn_datasource_sync ORDER BY order_ ASC")
