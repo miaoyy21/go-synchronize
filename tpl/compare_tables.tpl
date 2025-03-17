@@ -17,7 +17,8 @@
         FROM (
             SELECT DISTINCT src.database_name, src.table_name
             FROM syn_table_column src
-            WHERE NOT EXISTS (SELECT 1 FROM syn_src_table syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name)
+            WHERE src.database_name = '{{.Src}}'
+                AND NOT EXISTS (SELECT 1 FROM syn_src_table syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name)
         ) TT;
 
         /**************************************************************** 原始数据库表的策略 ****************************************************************/
@@ -30,7 +31,8 @@
         INSERT INTO syn_src_policy(id, database_name, table_name, column_id, column_name, column_type, is_primary, column_policy, create_at)
         SELECT NEWID(), src.database_name, src.table_name, src.column_id, src.column_name, src.column_type, src.is_primary, 'None', CONVERT(VARCHAR(20),GETDATE(),120)
         FROM syn_table_column src
-        WHERE NOT EXISTS (SELECT 1 FROM syn_src_policy syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name AND syn.column_name = src.column_name);
+        WHERE src.database_name = '{{.Src}}'
+            AND NOT EXISTS (SELECT 1 FROM syn_src_policy syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name AND syn.column_name = src.column_name);
 
         /**************************************************************** 字段转换规则 ****************************************************************/
         -- 导入字段转换规则
@@ -59,28 +61,3 @@
             WHERE src.database_name = '{{.Src}}' AND dst.column_type <> src.column_type
                 AND NOT EXISTS (SELECT 1 FROM syn_column_rule ruler WHERE ruler.dst_column_type = dst.column_type AND ruler.src_column_type = src.column_type)
         ) TT;
-
-        /**************************************************************** 查询字段差异 ****************************************************************/
-        SELECT TT.operation, TT.table_name, TT.column_name, TT.column_type, TT.is_primary, TT.column_type_org
-        FROM (
-            /* [1] 新增数据库表 */
-            SELECT '1' AS operation, src.table_name, src.column_id, src.column_name, src.column_type, src.is_primary, NULL AS column_type_org
-            FROM syn_table_column src
-            WHERE src.database_name = '{{.Src}}'
-                AND NOT EXISTS (SELECT 1 FROM syn_table_column dst WHERE dst.database_name = '{{.Dst}}' AND dst.table_name = src.table_name)
-            UNION ALL
-            /* [2] 新增字段 */
-            SELECT '2' AS operation, src.table_name, src.column_id, src.column_name, src.column_type, src.is_primary, NULL AS column_type_org
-            FROM syn_table_column src
-            WHERE src.database_name = '{{.Src}}'
-                AND EXISTS (SELECT 1 FROM syn_table_column dst WHERE dst.database_name = '{{.Dst}}' AND dst.table_name = src.table_name)
-                AND NOT EXISTS (SELECT 1 FROM syn_table_column dst WHERE dst.database_name = '{{.Dst}}' AND dst.table_name = src.table_name AND dst.column_name = src.column_name)
-            UNION ALL
-            /* [3] 类型修改 */
-            SELECT '3' AS operation, dst.table_name, src.column_id, src.column_name, src.column_type, src.is_primary, dst.column_type AS column_type_org
-            FROM syn_table_column src
-                INNER JOIN syn_table_column dst ON dst.database_name = '{{.Dst}}' AND dst.table_name = src.table_name AND dst.column_name = src.column_name
-            WHERE src.database_name = '{{.Src}}' AND dst.column_type <> src.column_type
-                AND NOT EXISTS (SELECT 1 FROM syn_column_rule ruler WHERE ruler.dst_column_type = dst.column_type AND ruler.src_column_type = src.column_type AND ruler.is_ignore = '1')
-        ) TT
-        ORDER BY TT.operation ASC, TT.table_name ASC, TT.column_id ASC;

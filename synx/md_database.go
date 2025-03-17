@@ -93,6 +93,8 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 			return map[string]interface{}{"status": "success"}, nil
 		case "compare":
 			return compareTables(tx, id)
+		case "difference":
+			return differenceTables(tx, id)
 		default:
 			return nil, fmt.Errorf("unexpect operation %q", operation)
 		}
