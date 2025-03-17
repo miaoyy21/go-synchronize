@@ -89,22 +89,30 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 		return err
 	}
 
+	// transaction Rollback
+	rollback := func() {
+		_, _ = srcTx.Rollback(), dstTx.Rollback()
+	}
+
 	// src cols && rows
 	_, srcHashed, srcRows, err := asql.QueryHashed(srcTx, srcIdField, srcSql)
 	if err != nil {
-		_, _ = srcTx.Rollback(), dstTx.Rollback()
+		rollback()
 		return err
 	}
 
 	// dst cols && rows
 	dstCols, dstHashed, _, err := asql.QueryHashed(dstTx, dstIdField, dstSql)
 	if err != nil {
-		_, _ = srcTx.Rollback(), dstTx.Rollback()
+		rollback()
 		return err
 	}
 
 	// compare src && dst Map
 	added, changed, removed := base.CompareMap(dstHashed, srcHashed)
+	if len(added)+len(changed)+len(removed) < 1 {
+		return nil
+	}
 
 	// Added
 	for key := range added {
@@ -124,6 +132,7 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 		}
 
 		if err := asql.Insert(dstTx, query, args...); err != nil {
+			rollback()
 			return err
 		}
 	}
@@ -145,6 +154,7 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 
 		query := fmt.Sprintf("UPDATE %s SET %s = ? WHERE %s = ?", dstTable, strings.Join(dstCols, " = ?,"), dstIdField)
 		if err := asql.Update(dstTx, query, args...); err != nil {
+			rollback()
 			return err
 		}
 	}
@@ -153,6 +163,7 @@ func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstData
 	for key := range removed {
 		query := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", dstTable, dstIdField)
 		if err := asql.Delete(dstTx, query, key); err != nil {
+			rollback()
 			return err
 		}
 	}
