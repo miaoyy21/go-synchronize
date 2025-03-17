@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-synchronize/asql"
 	"net/http"
+	"sort"
 )
 
 type DifferenceType string
@@ -28,6 +29,7 @@ type TableSync struct {
 	Table    string
 	IsSync   bool
 
+	Primary      TableSyncColumn
 	CreateTable  []TableSyncColumn
 	AddColumn    []TableSyncColumn
 	ModifyColumn []TableSyncColumn
@@ -38,16 +40,15 @@ func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 	case http.MethodGet:
 		database, table := r.FormValue("database_name"), r.FormValue("table_name")
 		if len(database) > 1 {
-			buf := new(bytes.Buffer)
 
 			var query string
 			var args []interface{}
 
 			if len(table) > 1 {
-				query = "SELECT table_name, is_sync FROM syn_src_table WHERE database_name = ? AND table_name = ? ORDER BY table_name ASC"
+				query = "SELECT db.dst_db AS dst_database_name, src.table_name, src.is_sync FROM syn_src_table src INNER JOIN syn_database db ON db.src_db = src.database_name WHERE src.database_name = ? AND src.table_name = ? ORDER BY src.table_name ASC"
 				args = []interface{}{database, table}
 			} else {
-				query = "SELECT table_name, is_sync FROM syn_src_table WHERE database_name = ? ORDER BY table_name ASC"
+				query = "SELECT db.dst_db AS dst_database_name, src.table_name, src.is_sync FROM syn_src_table src INNER JOIN syn_database db ON db.src_db = src.database_name WHERE src.database_name = ? ORDER BY src.table_name ASC"
 				args = []interface{}{database}
 			}
 
@@ -56,12 +57,23 @@ func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 				return nil, err
 			}
 
+			allData := make([]*TableSync, 0)
 			for _, row := range rows {
-				data, err := getTableSync(tx, database, row["table_name"], row["is_sync"] == "1")
+				data, err := getTableSync(tx, database, row["dst_database_name"], row["table_name"], row["is_sync"] == "1")
 				if err != nil {
 					return nil, err
 				}
 
+				allData = append(allData, data)
+			}
+
+			// 排序：创建表优先，否则会存在一起依赖有问题
+			sort.Slice(allData, func(i, j int) bool {
+				return len(allData[i].CreateTable) > 0
+			})
+
+			buf := new(bytes.Buffer)
+			for _, data := range allData {
 				buf.WriteString(getTemplate("sync_table.tpl", data))
 			}
 
@@ -74,9 +86,9 @@ func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 	}
 }
 
-func getTableSync(tx *sql.Tx, database, table string, isSync bool) (*TableSync, error) {
+func getTableSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool) (*TableSync, error) {
 	data := &TableSync{
-		Database: database,
+		Database: dstDatabase,
 		Table:    table,
 		IsSync:   isSync,
 
@@ -90,7 +102,7 @@ func getTableSync(tx *sql.Tx, database, table string, isSync bool) (*TableSync, 
 		FROM syn_src_difference 
 		WHERE database_name = ? AND table_name = ? 
 		ORDER BY column_id ASC 
-	`, database, table)
+	`, srcDatabase, table)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +113,10 @@ func getTableSync(tx *sql.Tx, database, table string, isSync bool) (*TableSync, 
 			Type:      row["column_type"],
 			IsPrimary: row["is_primary"] == "1",
 			TypeOrg:   row["column_type_org"],
+		}
+
+		if column.IsPrimary {
+			data.Primary = column
 		}
 
 		switch row["difference_type"] {

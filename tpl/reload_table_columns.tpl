@@ -8,7 +8,7 @@
         SELECT NEWID(), '{{.Database}}', TT.table_name, TT.column_id, TT.column_name,
             CASE
                 WHEN TT.column_xtype IN ('DECIMAL','NUMERIC') THEN 'NUMERIC'+'('+CONVERT(VARCHAR(10),TT.xprec)+','+CONVERT(VARCHAR(10),TT.xscale)+')'
-                WHEN TT.column_xtype IN ('VARCHAR','CHAR','NVARCHAR','NCHAR') THEN TT.column_xtype+'('+CONVERT(VARCHAR(10),TT.length)+')'
+                WHEN TT.column_xtype IN ('VARCHAR','CHAR','NVARCHAR','NCHAR','VARBINARY') THEN TT.column_xtype+'('+(CASE WHEN TT.length > 0 THEN CONVERT(VARCHAR(10),TT.length) ELSE 'MAX' END )+')'
             ELSE TT.COLUMN_XTYPE END AS column_type,
             TT.length,TT.is_primary, CONVERT(VARCHAR(20),GETDATE(),120)
         FROM (
@@ -24,6 +24,7 @@
                     WHEN 106 THEN 'DECIMAL'
                     WHEN 108 THEN 'NUMERIC'
                     WHEN 127 THEN 'BIGINT'
+                    WHEN 165 THEN 'VARBINARY'
                     WHEN 167 THEN 'VARCHAR'
                     WHEN 175 THEN 'CHAR'
                     WHEN 231 THEN 'NVARCHAR'
