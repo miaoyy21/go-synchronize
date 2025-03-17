@@ -1,9 +1,9 @@
 package asql
 
 import (
-	"bytes"
+	"crypto/md5"
 	"database/sql"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"strings"
@@ -84,7 +84,7 @@ func Query(tx *sql.Tx, query string, args ...interface{}) ([]map[string]string, 
 	return entries, nil
 }
 
-func QueryFull(tx *sql.Tx, idField string, query string, args ...interface{}) ([]string, map[string]string, map[string]map[string]string, error) {
+func QueryHashed(tx *sql.Tx, idField string, query string, args ...interface{}) ([]string, map[string]string, map[string]map[string]string, error) {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		var prefix string
 
@@ -120,7 +120,7 @@ func QueryFull(tx *sql.Tx, idField string, query string, args ...interface{}) ([
 		valuePts[i] = &values[i]
 	}
 
-	b64s, entries, num := make(map[string]string), make(map[string]map[string]string, 0), 0
+	hashed, entries, num := make(map[string]string), make(map[string]map[string]string, 0), 0
 	for rows.Next() {
 		var id string
 
@@ -128,31 +128,34 @@ func QueryFull(tx *sql.Tx, idField string, query string, args ...interface{}) ([
 			return nil, nil, nil, err
 		}
 
-		entry, full := make(map[string]string), make([][]byte, 0)
+		entry, full := make(map[string]string), make([]byte, 0)
 		for i, col := range columns {
-			if values[i] != nil {
-				value := string(values[i])
+			if values[i] == nil {
+				full = append(full, 0)
+				continue
+			}
 
-				// 隐式转换时间格式
-				if len(value) == len("2006-01-02T15:04:05Z") {
-					dt, err := time.Parse(time.RFC3339, value)
-					if err == nil {
-						if dt.Hour()+dt.Minute()+dt.Second() == 0 {
-							value = dt.Format("2006-01-02")
-						} else {
-							value = dt.Format("2006-01-02 15:04:05")
-						}
+			value := string(values[i])
+
+			// 隐式转换时间格式
+			if len(value) == len("2006-01-02T15:04:05Z") {
+				dt, err := time.Parse(time.RFC3339, value)
+				if err == nil {
+					if dt.Hour()+dt.Minute()+dt.Second() == 0 {
+						value = dt.Format("2006-01-02")
+					} else {
+						value = dt.Format("2006-01-02 15:04:05")
 					}
 				}
-
-				if strings.EqualFold(col, idField) {
-					id = value
-				} else {
-					full = append(full, values[i])
-				}
-
-				entry[strings.ToLower(col)] = value
 			}
+
+			if strings.EqualFold(col, idField) {
+				id = value
+			} else {
+				full = append(full, values[i]...)
+			}
+
+			entry[strings.ToLower(col)] = value
 		}
 
 		if len(strings.TrimSpace(id)) < 1 {
@@ -160,7 +163,9 @@ func QueryFull(tx *sql.Tx, idField string, query string, args ...interface{}) ([
 		}
 
 		num++
-		b64s[id] = base64.RawStdEncoding.EncodeToString(bytes.Join(full, []byte("|")))
+
+		h5 := md5.Sum(full)
+		hashed[id] = hex.EncodeToString(h5[:])
 		entries[id] = entry
 	}
 
@@ -172,5 +177,5 @@ func QueryFull(tx *sql.Tx, idField string, query string, args ...interface{}) ([
 		return nil, nil, nil, fmt.Errorf("array entries %d rows, but map entries %d rows", num, len(entries))
 	}
 
-	return columns, b64s, entries, nil
+	return columns, hashed, entries, nil
 }

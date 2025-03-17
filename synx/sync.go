@@ -57,7 +57,7 @@ func Run(db *sql.DB) {
 				continue
 			}
 
-			if err := run(tx, id, srcDriver, srcDatasource, srcSql, srcIdField, dstDriver, dstDatasource, dstSql, dstTable, dstIdField); err != nil {
+			if err := run(srcDriver, srcDatasource, srcSql, srcIdField, dstDriver, dstDatasource, dstSql, dstTable, dstIdField); err != nil {
 				logrus.Errorf("run() failure :: %s", err.Error())
 				_ = tx.Rollback()
 				continue
@@ -74,7 +74,7 @@ func Run(db *sql.DB) {
 	}
 }
 
-func run(tx *sql.Tx, id, srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField string) error {
+func run(srcDriver, srcDatasource, srcSql, srcIdField string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField string) error {
 	// src
 	srcTx, err := initDB(srcDriver, srcDatasource)
 	if err != nil {
@@ -89,21 +89,21 @@ func run(tx *sql.Tx, id, srcDriver, srcDatasource, srcSql, srcIdField string, ds
 	}
 
 	// src cols && rows
-	_, srcMap, srcRows, err := asql.QueryFull(srcTx, srcIdField, srcSql)
+	_, srcHashed, srcRows, err := asql.QueryHashed(srcTx, srcIdField, srcSql)
 	if err != nil {
 		_, _ = srcTx.Rollback(), dstTx.Rollback()
 		return err
 	}
 
 	// dst cols && rows
-	dstCols, dstMap, _, err := asql.QueryFull(dstTx, dstIdField, dstSql)
+	dstCols, dstHashed, _, err := asql.QueryHashed(dstTx, dstIdField, dstSql)
 	if err != nil {
 		_, _ = srcTx.Rollback(), dstTx.Rollback()
 		return err
 	}
 
 	// compare src && dst Map
-	added, changed, removed := base.CompareMap(dstMap, srcMap)
+	added, changed, removed := base.CompareMap(dstHashed, srcHashed)
 
 	// Added
 	for key := range added {
