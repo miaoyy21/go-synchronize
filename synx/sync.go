@@ -43,11 +43,12 @@ func Run(db *sql.DB) {
 			if err := asql.QueryRow(tx, query, SyncStatusExecuting, SyncStatusWaiting).
 				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &srcIdField, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField); err != nil {
 				if err == sql.ErrNoRows {
-					logrus.Debug("<<< none tasks found >>>")
+					logrus.Debug("<<< empty tasks found >>>")
 					continue
 				}
 
 				logrus.Errorf("asql.QueryRow() failure :: %s", err.Error())
+				_ = tx.Rollback()
 				continue
 			}
 

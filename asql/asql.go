@@ -65,6 +65,8 @@ func fnArgs(args ...interface{}) string {
 				buf.WriteString(fmt.Sprintf("%t", arg))
 			case float32, float64:
 				buf.WriteString(fmt.Sprintf("%f", arg))
+			case nil:
+				buf.WriteString("NULL")
 			default:
 				buf.WriteString(fmt.Sprintf("<%T>%#v", arg, arg))
 			}
