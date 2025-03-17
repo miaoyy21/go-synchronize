@@ -5,8 +5,8 @@
         DELETE FROM syn_src_difference WHERE database_name = '{{.Src}}';
 
         -- 导入原始数据库表结构差异
-        INSERT INTO syn_src_difference(id, difference_type, database_name, table_name, column_name, column_type, is_primary, column_type_org, create_at)
-        SELECT NEWID(), TT.difference_type, '{{.Src}}', TT.table_name, TT.column_name, TT.column_type, TT.is_primary, TT.column_type_org, CONVERT(VARCHAR(20),GETDATE(),120)
+        INSERT INTO syn_src_difference(id, difference_type, database_name, table_name, column_id, column_name, column_type, is_primary, column_type_org, create_at)
+        SELECT NEWID(), TT.difference_type, '{{.Src}}', TT.table_name, TT.column_id, TT.column_name, TT.column_type, TT.is_primary, TT.column_type_org, CONVERT(VARCHAR(20),GETDATE(),120)
         FROM (
             /* [1] 新增数据库表 */
             SELECT 'Create Table' AS difference_type, src.table_name, src.column_id, src.column_name, src.column_type, src.is_primary, NULL AS column_type_org
