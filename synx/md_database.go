@@ -92,9 +92,19 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 
 			return map[string]interface{}{"status": "success"}, nil
 		case "compare":
-			return compareTables(tx, id)
+			return asql.Query(tx, getTemplate("compare_tables.tpl",
+				struct {
+					Dst string
+					Src string
+				}{Dst: dstDb, Src: srcDb},
+			))
 		case "difference":
-			return differenceTables(tx, id)
+			return asql.Query(tx, getTemplate("difference_tables.tpl",
+				struct {
+					Dst string
+					Src string
+				}{Dst: dstDb, Src: srcDb},
+			))
 		default:
 			return nil, fmt.Errorf("unexpect operation %q", operation)
 		}

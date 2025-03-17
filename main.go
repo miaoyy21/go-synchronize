@@ -57,6 +57,7 @@ func main() {
 
 	http.Handle("/api/syn/md/datasource", base.Handler(db, synx.MDDatasource))
 	http.Handle("/api/syn/exe/datasource_sync", base.Handler(db, synx.MDDatasourceSync))
+	http.Handle("/api/syn/exe/table_sync", base.Handler(db, synx.MDTableSync))
 	http.Handle("/api/syn/exe/sql_sync", base.Handler(db, synx.MDSqlSync))
 
 	addr := net.JoinHostPort(base.Config.Host, base.Config.Port)
