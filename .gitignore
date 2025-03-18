@@ -6,5 +6,9 @@ jzerp_darwin_arm64
 jzerp_linux_386
 jzerp_windows_386.exe
 
+synchronize_darwin_arm64
+synchronize_linux_386
+synchronize_windows_386.exe
+
 config.json
 *.zip

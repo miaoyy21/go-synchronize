@@ -1,5 +1,5 @@
 # Binary name
-BINARY=jzerp
+BINARY=synchronize
 
 # Builds the project
 build:
