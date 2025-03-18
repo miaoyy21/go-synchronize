@@ -31,9 +31,10 @@ type SqlSync struct {
 	Table  string
 	IsSync bool
 
-	SrcFlag string
-	DstFlag string
-	Columns []SqlSyncColumn
+	SrcFlag  string
+	DstFlag  string
+	Columns  []SqlSyncColumn
+	Triggers []string
 }
 
 func ExeSqlSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
@@ -84,7 +85,8 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 		Table:       table,
 		IsSync:      isSync,
 
-		Columns: make([]SqlSyncColumn, 0),
+		Columns:  make([]SqlSyncColumn, 0),
+		Triggers: make([]string, 0),
 	}
 
 	if err := asql.QueryRow(tx, "SELECT src_flag, dst_flag FROM syn_database WHERE src_db = ?", srcDatabase).Scan(&data.SrcFlag, &data.DstFlag); err != nil {
@@ -127,6 +129,15 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 		}
 
 		data.Columns = append(data.Columns, column)
+	}
+
+	triggers, err := asql.Query(tx, "SELECT trigger_name FROM syn_table_trigger WHERE database_name = ? AND table_name = ?", dstDatabase, table)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, trigger := range triggers {
+		data.Triggers = append(data.Triggers, trigger["trigger_name"])
 	}
 
 	return data, nil

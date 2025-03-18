@@ -71,7 +71,11 @@ func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 
 			// 排序：创建表优先，否则会存在一起依赖有问题
 			sort.Slice(allData, func(i, j int) bool {
-				return len(allData[i].CreateTable) > 0
+				if (len(allData[i].CreateTable) > 0) != (len(allData[j].CreateTable) > 0) {
+					return len(allData[i].CreateTable) > 0
+				}
+
+				return allData[i].Table < allData[j].Table
 			})
 
 			buf := new(bytes.Buffer)
