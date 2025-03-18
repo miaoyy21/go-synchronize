@@ -8,7 +8,7 @@ INSERT INTO {{ .DstDatabase }}.dbo.{{ .Table }} (
 )
 SELECT {{ range $index, $column := .Columns }}
    {{- if eq $column.Name "_flag_" }}
-        '{{ $.SrcFlag }}' AS _flag_
+        '{{ $.SrcFlag }}'
    {{- else }}
         {{- if eq $column.Policy.Code "Add1000W"  }}
         CASE WHEN ISNULL(CONVERT({{ $column.Type }}, T.{{ $column.Name }}), 0) > 0 THEN CONVERT({{ $column.Type }}, T.{{ $column.Name }}) + 10000000 ELSE T.{{ $column.Name }} END /* {{ $column.Policy.Name }} */
