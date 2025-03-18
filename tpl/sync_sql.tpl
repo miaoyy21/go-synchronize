@@ -24,6 +24,8 @@ SELECT {{ range $index, $column := .Columns }}
     CASE WHEN ISNULL(T.{{ $column.Name }}, '') <> '' THEN T.{{ $column.Name }} + '{{ $.SrcFlag }}' ELSE T.{{ $column.Name }} END /* {{ $column.Policy.Name }} */
             {{- else if and (gt (len $column.Policy.ReplaceCode) 1) $column.Policy.IsExactlyMatch  }}
     CASE WHEN X{{ $column.Policy.Index }}.new_value IS NOT NULL THEN X{{ $column.Policy.Index }}.new_value ELSE T.{{ $column.Name }} END /* [{{$column.Policy.Index}}].{{ $column.Policy.Name }} */
+            {{- else if and (gt (len $column.Policy.ReplaceCode) 1) (not $column.Policy.IsExactlyMatch)  }}
+    CASE WHEN ISNULL(T.{{ $column.Name }}, '') <> '' THEN dbo.f_syn_replace('{{ $column.Policy.ReplaceCode }}', T.{{ $column.Name }}) ELSE T.{{ $column.Name }} END /* {{ $column.Policy.Name }} */
             {{- else }}
     T.{{ $column.Name -}}
             {{ end }}
