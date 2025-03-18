@@ -47,10 +47,10 @@ func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 			var args []interface{}
 
 			if len(table) > 1 {
-				query = "SELECT db.dst_db AS dst_database_name, src.table_name, src.is_sync FROM syn_src_table src INNER JOIN syn_database db ON db.src_db = src.database_name WHERE src.database_name = ? AND src.table_name = ? ORDER BY src.table_name ASC"
+				query = "SELECT db.dst_db AS database_name, src.table_name, src.is_sync FROM syn_src_table src INNER JOIN syn_database db ON db.src_db = src.database_name WHERE src.database_name = ? AND src.table_name = ? ORDER BY src.table_name ASC"
 				args = []interface{}{database, table}
 			} else {
-				query = "SELECT db.dst_db AS dst_database_name, src.table_name, src.is_sync FROM syn_src_table src INNER JOIN syn_database db ON db.src_db = src.database_name WHERE src.database_name = ? ORDER BY src.table_name ASC"
+				query = "SELECT db.dst_db AS database_name, src.table_name, src.is_sync FROM syn_src_table src INNER JOIN syn_database db ON db.src_db = src.database_name WHERE src.database_name = ? ORDER BY src.table_name ASC"
 				args = []interface{}{database}
 			}
 
@@ -61,7 +61,7 @@ func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 
 			allData := make([]*TableSync, 0)
 			for _, row := range rows {
-				data, err := getTableSync(tx, database, row["dst_database_name"], row["table_name"], row["is_sync"] == "1")
+				data, err := getTableSync(tx, database, row["database_name"], row["table_name"], row["is_sync"] == "1")
 				if err != nil {
 					return nil, err
 				}
