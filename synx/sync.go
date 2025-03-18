@@ -37,7 +37,6 @@ func Run(db *sql.DB) {
 			if err := db.QueryRow(query, SyncStatusExecuting, SyncStatusWaiting).
 				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField); err != nil {
 				if err == sql.ErrNoRows {
-					logrus.Debug("<<< empty sync tasks found >>>")
 					continue
 				}
 
