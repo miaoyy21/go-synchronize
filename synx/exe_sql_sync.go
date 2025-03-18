@@ -104,7 +104,7 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 				LEFT JOIN syn_column_policy X ON X.code = T.column_policy
 			WHERE T.database_name = ? AND T.table_name = ? AND T.column_name <> '_flag_'
 			UNION 
-			SELECT 9999, '_flag_', 'VARCHAR(1)', '0', T.code, T.name, T.is_using_replace, T.is_exactly_match
+			SELECT 9999, '_flag_', 'VARCHAR(1)', '0', T.code, T.name, T.replace_code, T.is_exactly_match
 			FROM syn_column_policy T
 			WHERE T.code = ?
 		) TT

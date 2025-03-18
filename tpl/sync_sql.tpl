@@ -22,8 +22,8 @@ SELECT {{ range $index, $column := .Columns }}
     CASE WHEN ISNULL(T.{{ $column.Name }}, 0) > 0 THEN T.{{ $column.Name }} + 10000000 ELSE T.{{ $column.Name }} END /* {{ $column.Policy.Name }} */
             {{- else if eq $column.Policy.Code "SuffixFlag"  }}
     CASE WHEN ISNULL(T.{{ $column.Name }}, '') <> '' THEN T.{{ $column.Name }} + '{{ $.SrcFlag }}' ELSE T.{{ $column.Name }} END /* {{ $column.Policy.Name }} */
-            {{- else if and $column.Policy.IsUsingReplace $column.Policy.IsExactlyMatch  }}
-    CASE WHEN X{{ $column.Policy.Index }}.new_value IS NOT NULL THEN X{{ $column.Policy.Index }}.new_value ELSE T.{{ $column.Name }} END /* {{ $column.Policy.Name }} */
+            {{- else if and (gt (len $column.Policy.ReplaceCode) 1) $column.Policy.IsExactlyMatch  }}
+    CASE WHEN X{{ $column.Policy.Index }}.new_value IS NOT NULL THEN X{{ $column.Policy.Index }}.new_value ELSE T.{{ $column.Name }} END /* [{{$column.Policy.Index}}].{{ $column.Policy.Name }} */
             {{- else }}
     T.{{ $column.Name -}}
             {{ end }}
@@ -32,8 +32,8 @@ SELECT {{ range $index, $column := .Columns }}
     {{- end }}
 FROM {{ .SrcDatabase }}.dbo.{{ .Table }} T
     {{- range $index, $column := .Columns }}
-        {{- if and $column.Policy.IsUsingReplace $column.Policy.IsExactlyMatch }}
-    LEFT JOIN syn_replace X{{ $column.Policy.Index }} ON X{{ $column.Policy.Index }}.policy_code = '{{ $column.Policy.Code }}' AND X{{ $column.Policy.Index }}.old_value = T.{{ $column.Name }}
+        {{- if and (gt (len $column.Policy.ReplaceCode) 1) $column.Policy.IsExactlyMatch }}
+    LEFT JOIN syn_replace_value X{{ $column.Policy.Index }} ON X{{ $column.Policy.Index }}.code = '{{ $column.Policy.ReplaceCode }}' AND X{{ $column.Policy.Index }}.old_value = T.{{ $column.Name }}
         {{- end -}}
     {{ end }}
 WHERE NOT EXISTS (SELECT 1 FROM {{ .DstDatabase }}.dbo.{{ .Table }} X WHERE ISNULL(X._flag_, '') = '{{ $.SrcFlag }}');
