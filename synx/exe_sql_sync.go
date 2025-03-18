@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"go-synchronize/asql"
 	"net/http"
-	"strings"
 )
 
 type SyncColumnPolicy struct {
-	Code  string
-	Name  string
+	Code string
+	Name string
+
 	Index int
+
+	ReplaceCode    string
+	IsExactlyMatch bool
 }
 
 type SqlSyncColumn struct {
@@ -94,38 +97,50 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 	}
 
 	cols, err := asql.Query(tx, `
-		SELECT column_name, column_type, is_primary, policy_code, policy_name
+		SELECT column_name, column_type, is_primary, policy_code, policy_name, replace_code, is_exactly_match
 		FROM (
-			SELECT T.column_id, T.column_name, T.column_type, T.is_primary, X.code AS policy_code, X.name AS policy_name
+			SELECT T.column_id, T.column_name, T.column_type, T.is_primary, X.code AS policy_code, X.name AS policy_name, X.replace_code, X.is_exactly_match
 			FROM syn_src_policy T
 				LEFT JOIN syn_column_policy X ON X.code = T.column_policy
-			WHERE T.database_name = ? AND T.table_name = ? 
+			WHERE T.database_name = ? AND T.table_name = ? AND T.column_name <> '_flag_'
 			UNION 
-			SELECT 9999, '_flag_', 'VARCHAR(1)', '0', 'None', '-'
+			SELECT 9999, '_flag_', 'VARCHAR(1)', '0', T.code, T.name, T.is_using_replace, T.is_exactly_match
+			FROM syn_column_policy T
+			WHERE T.code = ?
 		) TT
 		ORDER BY column_id ASC
-	`, srcDatabase, table)
+	`, srcDatabase, table, "None")
 	if err != nil {
 		return nil, err
 	}
 
-	indexes := make(map[string]int)
+	policyIndex := 0
 	for i, col := range cols {
 		policyCode, policyName := col["policy_code"], col["policy_name"]
-		if !strings.EqualFold(policyCode, "None") {
-			indexes[policyCode]++
+
+		// Policy Index
+		if len(col["replace_code"]) > 0 && col["is_exactly_match"] == "1" {
+			policyIndex++
 		}
+
+		// Column Policy
+		policy := SyncColumnPolicy{
+			Code: policyCode,
+			Name: policyName,
+
+			Index:          policyIndex,
+			ReplaceCode:    col["replace_code"],
+			IsExactlyMatch: col["is_exactly_match"] == "1",
+		}
+
+		// Column
 		column := SqlSyncColumn{
 			Name:      col["column_name"],
 			Type:      col["column_type"],
 			IsPrimary: col["is_primary"] == "1",
 			IsLast:    i+1 == len(cols),
 
-			Policy: SyncColumnPolicy{
-				Code:  policyCode,
-				Name:  policyName,
-				Index: indexes[policyCode],
-			},
+			Policy: policy,
 		}
 
 		data.Columns = append(data.Columns, column)

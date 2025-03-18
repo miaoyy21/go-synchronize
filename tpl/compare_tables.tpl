@@ -2,8 +2,8 @@
 
         /**************************************************************** 初始化 ****************************************************************/
         IF NOT EXISTS (SELECT 1 FROM syn_column_policy WHERE code = 'None')
-            INSERT INTO syn_column_policy(id, code, name, description, order_, create_at)
-            VALUES (NEWID(),'None','-','系统默认添加的字段更新策略，表示该字段没设置更新策略',0,CONVERT(VARCHAR(20),GETDATE(),120));
+            INSERT INTO syn_column_policy(id, code, name, replace_code, is_exactly_match, description,  order_, create_at)
+            VALUES (NEWID(), 'None', '-', '-', '0', '系统默认添加的字段更新策略，表示该字段没设置更新策略',0,CONVERT(VARCHAR(20),GETDATE(),120));
 
         /**************************************************************** 原始数据库表 ****************************************************************/
         -- 删除没有的原始数据库表

@@ -51,6 +51,7 @@ func main() {
 	http.Handle("/api/syn/md/database", base.Handler(db, synx.MDDatabase))
 	http.Handle("/api/syn/md/database_table", base.Handler(db, synx.MDDatabaseTable))
 	http.Handle("/api/syn/md/column_rule", base.Handler(db, synx.MDColumnRule))
+	http.Handle("/api/syn/md/replace_code", base.Handler(db, synx.MDReplaceCode))
 	http.Handle("/api/syn/md/column_policy", base.Handler(db, synx.MDColumnPolicy))
 	http.Handle("/api/syn/md/src_table", base.Handler(db, synx.MDSrcTable))
 	http.Handle("/api/syn/md/src_policy", base.Handler(db, synx.MdSrcPolicy))
