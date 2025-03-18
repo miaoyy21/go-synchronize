@@ -6,8 +6,30 @@ import (
 	"fmt"
 	"go-synchronize/asql"
 	"net/http"
-	"sort"
+	"strings"
 )
+
+type SqlSyncColumn struct {
+	Name      string
+	Type      string
+	IsPrimary bool
+	IsLast    bool
+
+	PolicyName  string
+	PolicyIndex int
+}
+
+type SqlSync struct {
+	SrcDatabase string
+	DstDatabase string
+
+	Table  string
+	IsSync bool
+
+	SrcFlag string
+	DstFlag string
+	Columns []SqlSyncColumn
+}
 
 func ExeSqlSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	switch r.Method {
@@ -31,24 +53,14 @@ func ExeSqlSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 				return nil, err
 			}
 
-			allData := make([]*TableSync, 0)
+			buf := new(bytes.Buffer)
 			for _, row := range rows {
 				data, err := getSqlSync(tx, database, row["database_name"], row["table_name"], row["is_sync"] == "1")
 				if err != nil {
 					return nil, err
 				}
 
-				allData = append(allData, data)
-			}
-
-			// 排序：创建表优先，否则会存在一起依赖有问题
-			sort.Slice(allData, func(i, j int) bool {
-				return len(allData[i].CreateTable) > 0
-			})
-
-			buf := new(bytes.Buffer)
-			for _, data := range allData {
-				buf.WriteString(getTemplate("sync_table.tpl", data))
+				buf.WriteString(getTemplate("sync_sql.tpl", data))
 			}
 
 			return buf.String(), nil
@@ -60,63 +72,52 @@ func ExeSqlSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 	}
 }
 
-func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool) (*TableSync, error) {
-	data := &TableSync{
-		Database: dstDatabase,
-		Table:    table,
-		IsSync:   isSync,
+func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool) (*SqlSync, error) {
+	data := &SqlSync{
+		SrcDatabase: srcDatabase,
+		DstDatabase: dstDatabase,
+		Table:       table,
+		IsSync:      isSync,
 
-		CreateTable:  make([]TableSyncColumn, 0),
-		AddColumn:    make([]TableSyncColumn, 0),
-		ModifyColumn: make([]TableSyncColumn, 0),
+		Columns: make([]SqlSyncColumn, 0),
 	}
 
-	rows, err := asql.Query(tx, `
-		SELECT difference_type, column_name, column_type, is_primary, column_type_org 
-		FROM syn_src_difference 
-		WHERE database_name = ? AND table_name = ? 
-		ORDER BY column_id ASC 
+	if err := asql.QueryRow(tx, "SELECT src_flag, dst_flag FROM syn_database WHERE src_db = ?", srcDatabase).Scan(&data.SrcFlag, &data.DstFlag); err != nil {
+		return nil, err
+	}
+
+	cols, err := asql.Query(tx, `
+		SELECT column_name, column_type, is_primary, column_policy
+		FROM (
+			SELECT column_id, column_name, column_type, is_primary, column_policy 
+			FROM syn_src_policy 
+			WHERE database_name = ? AND table_name = ? 
+			UNION 
+			SELECT 9999, '_flag_', 'VARCHAR(1)', '0', 'None'
+		) T
+		ORDER BY column_id ASC
 	`, srcDatabase, table)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := asql.QueryRow(tx, `
-		SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM syn_table_column dst WHERE dst.database_name = db.dst_db AND dst.table_name = ? AND dst.column_name = ?) THEN db.dst_flag ELSE '' END AS flag
-		FROM syn_database db
-		WHERE db.dst_db = ?
-	`, table, "_flag_", dstDatabase).Scan(&data.Flag); err != nil {
-		if err != sql.ErrNoRows {
-			return nil, err
+	indexes := make(map[string]int)
+	for i, col := range cols {
+		policy := col["column_policy"]
+		if !strings.EqualFold(policy, "None") {
+			indexes[policy]++
 		}
-	}
+		column := SqlSyncColumn{
+			Name:      col["column_name"],
+			Type:      col["column_type"],
+			IsPrimary: col["is_primary"] == "1",
+			IsLast:    i+1 == len(cols),
 
-	for _, row := range rows {
-		column := TableSyncColumn{
-			Name:      row["column_name"],
-			Type:      row["column_type"],
-			IsPrimary: row["is_primary"] == "1",
-			TypeOrg:   row["column_type_org"],
+			PolicyName:  policy,
+			PolicyIndex: indexes[policy],
 		}
 
-		if column.IsPrimary {
-			data.Primary = column
-		}
-
-		switch row["difference_type"] {
-		case DifferenceTypeCreateTable:
-			data.CreateTable = append(data.CreateTable, column)
-		case DifferenceTypeAddColumn:
-			data.AddColumn = append(data.AddColumn, column)
-		case DifferenceTypeModifyColumn:
-			data.ModifyColumn = append(data.ModifyColumn, column)
-		default:
-			return nil, fmt.Errorf("invalid difference type of %q", row["difference_type"])
-		}
-	}
-
-	if len(data.CreateTable) > 0 {
-		data.Flag = ""
+		data.Columns = append(data.Columns, column)
 	}
 
 	return data, nil
