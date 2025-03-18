@@ -47,7 +47,6 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir("www")))
 
 	// 访问服务
-	http.Handle("/api/tests", base.Handler(db, synx.Tests))
 	http.Handle("/api/syn/md/database", base.Handler(db, synx.MDDatabase))
 	http.Handle("/api/syn/md/database_table", base.Handler(db, synx.MDDatabaseTable))
 	http.Handle("/api/syn/md/column_rule", base.Handler(db, synx.MDColumnRule))
