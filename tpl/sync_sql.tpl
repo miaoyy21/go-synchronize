@@ -1,3 +1,5 @@
+
+/************************************************ {{ .DstDatabase }}.dbo.{{ .Table }} ************************************************/
 INSERT INTO {{ .DstDatabase }}.dbo.{{ .Table }} (
 {{- range $index, $column := .Columns -}}
     {{ $column.Name }}
@@ -6,7 +8,7 @@ INSERT INTO {{ .DstDatabase }}.dbo.{{ .Table }} (
 )
 SELECT {{ range $index, $column := .Columns }}
    {{- if eq $column.Name "_flag_" }}
-        '{{ $.SrcFlag }}'
+        '{{ $.SrcFlag }}' AS _flag_
    {{- else }}
         T.{{ $column.Name }}
    {{- end -}}
