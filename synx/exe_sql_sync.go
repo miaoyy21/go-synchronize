@@ -9,14 +9,19 @@ import (
 	"strings"
 )
 
+type SyncColumnPolicy struct {
+	Code  string
+	Name  string
+	Index int
+}
+
 type SqlSyncColumn struct {
 	Name      string
 	Type      string
 	IsPrimary bool
 	IsLast    bool
 
-	PolicyName  string
-	PolicyIndex int
+	Policy SyncColumnPolicy
 }
 
 type SqlSync struct {
@@ -87,14 +92,15 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 	}
 
 	cols, err := asql.Query(tx, `
-		SELECT column_name, column_type, is_primary, column_policy
+		SELECT column_name, column_type, is_primary, policy_code, policy_name
 		FROM (
-			SELECT column_id, column_name, column_type, is_primary, column_policy 
-			FROM syn_src_policy 
-			WHERE database_name = ? AND table_name = ? 
+			SELECT T.column_id, T.column_name, T.column_type, T.is_primary, X.code AS policy_code, X.name AS policy_name
+			FROM syn_src_policy T
+				LEFT JOIN syn_column_policy X ON X.code = T.column_policy
+			WHERE T.database_name = ? AND T.table_name = ? 
 			UNION 
-			SELECT 9999, '_flag_', 'VARCHAR(1)', '0', 'None'
-		) T
+			SELECT 9999, '_flag_', 'VARCHAR(1)', '0', 'None', '-'
+		) TT
 		ORDER BY column_id ASC
 	`, srcDatabase, table)
 	if err != nil {
@@ -103,9 +109,9 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 
 	indexes := make(map[string]int)
 	for i, col := range cols {
-		policy := col["column_policy"]
-		if !strings.EqualFold(policy, "None") {
-			indexes[policy]++
+		policyCode, policyName := col["policy_code"], col["policy_name"]
+		if !strings.EqualFold(policyCode, "None") {
+			indexes[policyCode]++
 		}
 		column := SqlSyncColumn{
 			Name:      col["column_name"],
@@ -113,8 +119,11 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 			IsPrimary: col["is_primary"] == "1",
 			IsLast:    i+1 == len(cols),
 
-			PolicyName:  policy,
-			PolicyIndex: indexes[policy],
+			Policy: SyncColumnPolicy{
+				Code:  policyCode,
+				Name:  policyName,
+				Index: indexes[policyCode],
+			},
 		}
 
 		data.Columns = append(data.Columns, column)
