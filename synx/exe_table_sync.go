@@ -29,6 +29,8 @@ type TableSync struct {
 	Table    string
 	IsSync   bool
 
+	Flag string
+
 	Primary      TableSyncColumn
 	CreateTable  []TableSyncColumn
 	AddColumn    []TableSyncColumn
@@ -107,6 +109,16 @@ func getTableSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync boo
 		return nil, err
 	}
 
+	if err := asql.QueryRow(tx, `
+		SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM syn_table_column dst WHERE dst.database_name = db.dst_db AND dst.table_name = ? AND dst.column_name = ?) THEN db.dst_flag ELSE '' END AS flag
+		FROM syn_database db
+		WHERE db.dst_db = ?
+	`, table, "_flag_", dstDatabase).Scan(&data.Flag); err != nil {
+		if err != sql.ErrNoRows {
+			return nil, err
+		}
+	}
+
 	for _, row := range rows {
 		column := TableSyncColumn{
 			Name:      row["column_name"],
@@ -129,6 +141,10 @@ func getTableSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync boo
 		default:
 			return nil, fmt.Errorf("invalid difference type of %q", row["difference_type"])
 		}
+	}
+
+	if len(data.CreateTable) > 0 {
+		data.Flag = ""
 	}
 
 	return data, nil
