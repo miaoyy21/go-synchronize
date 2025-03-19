@@ -19,7 +19,7 @@ type Column struct {
 type Table struct {
 	Name     string    `json:"name"`     // 数据库表名称
 	Rows     string    `json:"rows"`     // 行数
-	Primary  *Column   `json:"primary"`  // 主键
+	Primary  []string  `json:"primary"`  // 主键
 	Columns  []*Column `json:"columns"`  // 字段
 	Triggers []string  `json:"triggers"` // 触发器【启用】
 }
@@ -75,7 +75,7 @@ func loadTables(tx *sql.Tx, database string) ([]*Table, error) {
 
 		// Primary
 		if col["is_primary"] == "1" {
-			table.Primary = column
+			table.Primary = append(table.Primary, col["column_name"])
 		}
 
 		// Columns
