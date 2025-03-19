@@ -9,12 +9,16 @@ import (
 )
 
 type Column struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	IsPrimary  string `json:"is_primary"`
+	IsNullable string `json:"is_nullable"`
+	IsIdentity string `json:"is_identity"`
 }
 
 type Table struct {
 	Name     string    `json:"name"`     // 数据库表名称
+	Rows     string    `json:"rows"`     // 行数
 	Primary  *Column   `json:"primary"`  // 主键
 	Columns  []*Column `json:"columns"`  // 字段
 	Triggers []string  `json:"triggers"` // 触发器【启用】
@@ -41,7 +45,7 @@ func loadTables(tx *sql.Tx, database string) ([]*Table, error) {
 	tables := make(map[string]*Table)
 
 	// 查询数据库表和字段
-	cols, err := asql.Query(tx, "SELECT table_name, column_name, column_type, is_primary FROM syn_table_column WHERE database_name = ? ORDER BY table_name ASC,column_id ASC", database)
+	cols, err := asql.Query(tx, "SELECT table_name, column_name, column_type, is_primary, is_nullable, is_identity FROM syn_table_column WHERE database_name = ? ORDER BY table_name ASC,column_id ASC", database)
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +66,11 @@ func loadTables(tx *sql.Tx, database string) ([]*Table, error) {
 
 		// Column
 		column := &Column{
-			Name: col["column_name"],
-			Type: col["column_type"],
+			Name:       col["column_name"],
+			Type:       col["column_type"],
+			IsPrimary:  col["is_primary"],
+			IsNullable: col["is_nullable"],
+			IsIdentity: col["is_identity"],
 		}
 
 		// Primary
@@ -75,6 +82,23 @@ func loadTables(tx *sql.Tx, database string) ([]*Table, error) {
 		table.Columns = append(table.Columns, column)
 
 		// Tables
+		tables[tableName] = table
+	}
+
+	// 查询数据记录数量
+	rows, err := asql.Query(tx, "SELECT table_name, rows FROM syn_table WHERE database_name = ?", database)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		tableName, tableRows := strings.ToLower(row["table_name"]), row["rows"]
+		table, ok := tables[tableName]
+		if !ok {
+			logrus.Panicf("unexpect table %q", tableName)
+		}
+
+		table.Rows = tableRows
 		tables[tableName] = table
 	}
 

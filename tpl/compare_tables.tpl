@@ -16,14 +16,15 @@
         WHERE NOT EXISTS (SELECT 1 FROM syn_table_column src WHERE src.database_name = syn.database_name AND src.table_name = syn.table_name);
 
         -- 导入原始数据库表
-        INSERT INTO syn_src_table(id, database_name, table_name, is_sync, create_at)
-        SELECT NEWID(), TT.database_name, TT.table_name, '1' AS is_sync, CONVERT(VARCHAR(20),GETDATE(),120)
+        INSERT INTO syn_src_table(id, database_name, table_name, is_sync, rows, create_at)
+        SELECT NEWID(), TT.database_name, TT.table_name, '1' AS is_sync, XX.rows, CONVERT(VARCHAR(20),GETDATE(),120)
         FROM (
             SELECT DISTINCT src.database_name, src.table_name
             FROM syn_table_column src
             WHERE src.database_name = '{{.Src}}'
                 AND NOT EXISTS (SELECT 1 FROM syn_src_table syn WHERE syn.database_name = src.database_name AND syn.table_name = src.table_name)
-        ) TT;
+        ) TT
+            LEFT JOIN syn_table XX ON XX.database_name = TT.database_name AND XX.table_name = TT.table_name;
 
         /**************************************************************** 原始数据库表的策略 ****************************************************************/
         -- 删除没有的原始数据库表的策略
