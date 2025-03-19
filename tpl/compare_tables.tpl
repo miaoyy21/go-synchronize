@@ -15,9 +15,9 @@
         INSERT INTO syn_column_policy(id, code, name, description, create_at, order_, is_exactly_match, replace_code)
         SELECT id, code, name, description, create_at, order_, is_exactly_match, replace_code
         FROM (
-            SELECT '0', 'None', '-', '系统默认添加的字段更新策略，表示该字段没设置更新策略', CONVERT(VARCHAR(20),GETDATE(),120), 10000, '0', '-'
+            SELECT '0' AS id, 'None' AS code, '-' AS name, '系统默认添加的字段更新策略，表示该字段没设置更新策略' AS description, CONVERT(VARCHAR(20),GETDATE(),120) AS create_at, 10000 AS order_, '0' AS is_exactly_match, '-' AS replace_code
             UNION ALL
-            SELECT '1' AS id, 'Add1000W' AS code, '数值增加1千万' AS name, '处理自增数值ID或关联的数值ID，忽略零值【0】。示例：123 => 10000123' AS description, CONVERT(VARCHAR(20),GETDATE(),120) AS create_at, 20000 AS order_, '0' AS is_exactly_match, '-' AS replace_code
+            SELECT '1', 'Add1000W', '数值增加1千万', '处理自增数值ID或关联的数值ID，忽略零值【0】。示例：123 => 10000123', CONVERT(VARCHAR(20),GETDATE(),120), 20000, '0', '-'
             UNION ALL
             SELECT '2', 'SuffixFlag', '尾部添加标识符', '处理单据号，忽略零值【''''】。示例：HTR250001 => HTR250001Y', CONVERT(VARCHAR(20),GETDATE(),120), 30000, '0', '-'
             UNION ALL
