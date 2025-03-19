@@ -1,13 +1,31 @@
 
 
         /**************************************************************** 初始化 ****************************************************************/
-        IF NOT EXISTS (SELECT 1 FROM syn_replace_code WHERE code = '-')
-            INSERT INTO syn_replace_code(id, code, name, description, order_, create_at)
-            VALUES (NEWID(), '-', '-', '数据库完整性约束，不启用替换模式',0,CONVERT(VARCHAR(20),GETDATE(),120));
+        -- syn_replace_code
+        INSERT INTO syn_replace_code(id, code, name, description, order_, create_at)
+        SELECT TT.id, TT.code, TT.name, TT.description, TT.order_, TT.create_at
+        FROM (
+            SELECT '0' AS id, '-' AS code, '-' AS name, '数据库完整性约束，不启用替换模式' AS description, 10000 AS order_, CONVERT(VARCHAR(20),GETDATE(),120) AS create_at
+            UNION ALL
+            SELECT '1', 'RYDM', '人员代码', '人员编号替换', 20000, CONVERT(VARCHAR(20),GETDATE(),120)
+        ) TT
+        WHERE NOT EXISTS (SELECT 1 FROM syn_replace_code XX WHERE XX.code = TT.code);
 
-        IF NOT EXISTS (SELECT 1 FROM syn_column_policy WHERE code = 'None')
-            INSERT INTO syn_column_policy(id, code, name, replace_code, is_exactly_match, description,  order_, create_at)
-            VALUES (NEWID(), 'None', '-', '-', '0', '系统默认添加的字段更新策略，表示该字段没设置更新策略',0,CONVERT(VARCHAR(20),GETDATE(),120));
+        -- syn_column_policy
+        INSERT INTO syn_column_policy(id, code, name, description, create_at, order_, is_exactly_match, replace_code)
+        SELECT id, code, name, description, create_at, order_, is_exactly_match, replace_code
+        FROM (
+            SELECT '0', 'None', '-', '系统默认添加的字段更新策略，表示该字段没设置更新策略', CONVERT(VARCHAR(20),GETDATE(),120), 10000, '0', '-'
+            UNION ALL
+            SELECT '1' AS id, 'Add1000W' AS code, '数值增加1千万' AS name, '处理自增数值ID或关联的数值ID，忽略零值【0】。示例：123 => 10000123' AS description, CONVERT(VARCHAR(20),GETDATE(),120) AS create_at, 20000 AS order_, '0' AS is_exactly_match, '-' AS replace_code
+            UNION ALL
+            SELECT '2', 'SuffixFlag', '尾部添加标识符', '处理单据号，忽略零值【''''】。示例：HTR250001 => HTR250001Y', CONVERT(VARCHAR(20),GETDATE(),120), 30000, '0', '-'
+            UNION ALL
+            SELECT '3', 'ReplaceRybh', '替换人员编号', '替换人员编号，忽略零值【''''】。示例：WZB250001 => 0120250001', CONVERT(VARCHAR(20),GETDATE(),120), 40000, '1', 'RYDM'
+            UNION ALL
+            SELECT '4', 'ReplaceRybhEx', '替换人员编号【多】', '替换多个人员编号，忽略零值【''''】。示例：WZB250001,WZB250003 => 0120250001,0120250003', CONVERT(VARCHAR(20),GETDATE(),120), 50000, '0', 'RYDM'
+        ) TT
+        WHERE NOT EXISTS (SELECT 1 FROM syn_column_policy XX WHERE XX.code = TT.code)
 
         /**************************************************************** 原始数据库表 ****************************************************************/
         -- 删除没有的原始数据库表
