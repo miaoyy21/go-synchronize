@@ -2,10 +2,14 @@
 /************************************************ {{ .DstDatabase }}.dbo.{{ .Table }} ************************************************/
 {{- if .IsSync }}
     {{- if .Triggers }}
--- 禁用数据库表 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的所有启用的触发器
+-- 允许 {{ $.DstDatabase }}.dbo.{{ $.Table }} 根据标识插入数据
         {{- range $index, $trigger := .Triggers }}
 DISABLE TRIGGER {{ $trigger }} ON {{ $.DstDatabase }}.dbo.{{ $.Table }};
         {{- end }}
+    {{ end }}
+    {{- if .HasIdentity }}
+-- 禁用数据库表 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的所有启用的触发器
+SET IDENTITY_INSERT {{ $.DstDatabase }}.dbo.{{ $.Table }} ON;
     {{ end }}
 -- 将 {{ .SrcDatabase }}.dbo.{{ .Table }} 的数据记录添加到 {{ .DstDatabase }}.dbo.{{ .Table }}
 INSERT INTO {{ .DstDatabase }}.dbo.{{ .Table }} (
@@ -39,7 +43,11 @@ FROM {{ .SrcDatabase }}.dbo.{{ .Table }} T
         {{- end -}}
     {{ end }}
 WHERE NOT EXISTS (SELECT 1 FROM {{ .DstDatabase }}.dbo.{{ .Table }} X WHERE ISNULL(X._flag_, '') = '{{ $.SrcFlag }}');
-    {{ if .Triggers }}
+    {{ if .HasIdentity }}
+-- 禁止 {{ $.DstDatabase }}.dbo.{{ $.Table }} 根据标识插入数据
+SET IDENTITY_INSERT {{ $.DstDatabase }}.dbo.{{ $.Table }} OFF;
+    {{ end }}
+    {{- if .Triggers }}
 -- 恢复数据库表 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的所有启用的触发器
         {{- range $index, $trigger := .Triggers }}
 ENABLE TRIGGER {{ $trigger }} ON {{ $.DstDatabase }}.dbo.{{ $.Table }};
@@ -47,4 +55,4 @@ ENABLE TRIGGER {{ $trigger }} ON {{ $.DstDatabase }}.dbo.{{ $.Table }};
     {{ end }}
 {{- else }}
 -- 警告：数据库表 {{ .SrcDatabase }}.dbo.{{ .Table }} 的迁移同步处于未启用状态，自动忽略
-{{ end -}}
+{{ end }}

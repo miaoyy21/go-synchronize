@@ -18,10 +18,12 @@ var (
 )
 
 type TableSyncColumn struct {
-	Name      string
-	Type      string
-	IsPrimary bool
-	TypeOrg   string
+	Name       string
+	Type       string
+	IsPrimary  bool
+	IsNullable bool
+	IsIdentity bool
+	TypeOrg    string
 }
 
 type TableSync struct {
@@ -104,10 +106,11 @@ func getTableSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync boo
 	}
 
 	rows, err := asql.Query(tx, `
-		SELECT difference_type, column_name, column_type, is_primary, column_type_org 
-		FROM syn_src_difference 
-		WHERE database_name = ? AND table_name = ? 
-		ORDER BY column_id ASC 
+		SELECT TT.difference_type, TT.column_name, TT.column_type, TT.is_primary, XX.is_nullable, XX.is_identity, TT.column_type_org 
+		FROM syn_src_difference TT
+			LEFT JOIN syn_table_column XX ON XX.database_name = TT.database_name AND XX.table_name = TT.table_name AND XX.column_name = TT.column_name
+		WHERE TT.database_name = ? AND TT.table_name = ? 
+		ORDER BY TT.column_id ASC 
 	`, srcDatabase, table)
 	if err != nil {
 		return nil, err
@@ -125,10 +128,12 @@ func getTableSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync boo
 
 	for _, row := range rows {
 		column := TableSyncColumn{
-			Name:      row["column_name"],
-			Type:      row["column_type"],
-			IsPrimary: row["is_primary"] == "1",
-			TypeOrg:   row["column_type_org"],
+			Name:       row["column_name"],
+			Type:       row["column_type"],
+			IsPrimary:  row["is_primary"] == "1",
+			IsNullable: row["is_nullable"] == "1",
+			IsIdentity: row["is_identity"] == "1",
+			TypeOrg:    row["column_type_org"],
 		}
 
 		if column.IsPrimary {

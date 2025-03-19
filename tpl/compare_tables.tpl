@@ -25,7 +25,7 @@
         -- 删除没有的原始数据库表的策略
         DELETE syn
         FROM syn_src_policy syn
-        WHERE NOT EXISTS (SELECT 1 FROM syn_table_column src WHERE src.database_name = syn.database_name AND src.table_name = syn.table_name AND src.column_name = syn.column_name AND src.column_type = syn.column_type);
+        WHERE NOT EXISTS (SELECT 1 FROM syn_table_column src WHERE src.database_name = syn.database_name AND src.table_name = syn.table_name AND src.column_name = syn.column_name);
 
         -- 导入原始数据库表的策略
         INSERT INTO syn_src_policy(id, database_name, table_name, column_id, column_name, column_type, is_primary, column_policy, create_at)

@@ -19,10 +19,12 @@ type SyncColumnPolicy struct {
 }
 
 type SqlSyncColumn struct {
-	Name      string
-	Type      string
-	IsPrimary bool
-	IsLast    bool
+	Name       string
+	Type       string
+	IsPrimary  bool
+	IsNullable bool
+	IsIdentity bool
+	IsLast     bool
 
 	Policy SyncColumnPolicy
 }
@@ -31,8 +33,9 @@ type SqlSync struct {
 	SrcDatabase string
 	DstDatabase string
 
-	Table  string
-	IsSync bool
+	Table       string
+	IsSync      bool
+	HasIdentity bool
 
 	SrcFlag  string
 	DstFlag  string
@@ -87,6 +90,7 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 		DstDatabase: dstDatabase,
 		Table:       table,
 		IsSync:      isSync,
+		HasIdentity: false,
 
 		Columns:  make([]SqlSyncColumn, 0),
 		Triggers: make([]string, 0),
@@ -97,7 +101,7 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 	}
 
 	cols, err := asql.Query(tx, `
-		SELECT column_name, column_type, is_primary, policy_code, policy_name, replace_code, is_exactly_match
+		SELECT TT.column_name, TT.column_type, TT.is_primary, XX.is_nullable, XX.is_identity, TT.policy_name, TT.replace_code, TT.is_exactly_match
 		FROM (
 			SELECT T.column_id, T.column_name, T.column_type, T.is_primary, X.code AS policy_code, X.name AS policy_name, X.replace_code, X.is_exactly_match
 			FROM syn_src_policy T
@@ -108,8 +112,9 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 			FROM syn_column_policy T
 			WHERE T.code = ?
 		) TT
-		ORDER BY column_id ASC
-	`, srcDatabase, table, "None")
+			LEFT JOIN syn_table_column XX ON XX.database_name = ? AND XX.table_name = ? AND XX.column_name = TT.column_name
+		ORDER BY TT.column_id ASC
+	`, srcDatabase, table, "None", srcDatabase, table)
 	if err != nil {
 		return nil, err
 	}
@@ -135,12 +140,19 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 
 		// Column
 		column := SqlSyncColumn{
-			Name:      col["column_name"],
-			Type:      col["column_type"],
-			IsPrimary: col["is_primary"] == "1",
-			IsLast:    i+1 == len(cols),
+			Name:       col["column_name"],
+			Type:       col["column_type"],
+			IsPrimary:  col["is_primary"] == "1",
+			IsNullable: col["is_nullable"] == "1",
+			IsIdentity: col["is_identity"] == "1",
+			IsLast:     i+1 == len(cols),
 
 			Policy: policy,
+		}
+
+		// Identity
+		if column.IsIdentity {
+			data.HasIdentity = true
 		}
 
 		data.Columns = append(data.Columns, column)
