@@ -14,7 +14,7 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 		action := r.FormValue("action")
 
 		if strings.EqualFold(action, "all_options") {
-			rows, err := asql.Query(tx, "SELECT dst_db, src_db FROM syn_database")
+			rows, err := asql.Query(tx, "SELECT dst_db, src_db FROM syn_database ORDER BY order_ ASC")
 			if err != nil {
 				return nil, err
 			}
@@ -26,7 +26,7 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 
 			return res, nil
 		} else if strings.EqualFold(action, "src_options") {
-			rows, err := asql.Query(tx, "SELECT src_db FROM syn_database")
+			rows, err := asql.Query(tx, "SELECT src_db FROM syn_database ORDER BY order_ ASC")
 			if err != nil {
 				return nil, err
 			}
@@ -39,7 +39,7 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 			return res, nil
 		}
 
-		return asql.Query(tx, "SELECT * FROM syn_database")
+		return asql.Query(tx, "SELECT * FROM syn_database ORDER BY order_ ASC")
 	default:
 		operation := r.PostFormValue("operation")
 
@@ -49,6 +49,10 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 		srcDb := strings.TrimSpace(r.PostFormValue("src_db"))
 		dstFlag := strings.TrimSpace(r.PostFormValue("dst_flag"))
 		srcFlag := strings.TrimSpace(r.PostFormValue("src_flag"))
+
+		moveId := r.PostFormValue("webix_move_id")
+		moveIndex := r.PostFormValue("webix_move_index")
+		moveParent := r.PostFormValue("webix_move_parent")
 
 		switch operation {
 		case "insert":
@@ -71,6 +75,12 @@ func MDDatabase(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 			return map[string]interface{}{"status": "success", "id": id}, nil
 		case "delete":
 			if err := asql.Delete(tx, "DELETE FROM syn_database WHERE id = ?", id); err != nil {
+				return nil, err
+			}
+
+			return map[string]interface{}{"status": "success"}, nil
+		case "order":
+			if err := asql.Order(tx, "syn_database", id, moveId, moveIndex, moveParent); err != nil {
 				return nil, err
 			}
 
