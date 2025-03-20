@@ -110,14 +110,13 @@ func runSync(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, 
 		rollback()
 		return err
 	}
-	logrus.Debugf("query :: source %d rows, and target %d rows .", len(srcHashed), len(dstHashed))
 
 	// Insert or Update Fields
 	dstFields := getSqlFields(dstSql)
 
 	// compare src && dst Map
 	added, changed, removed := base.CompareMap(dstHashed, srcHashed)
-	logrus.Debugf("compare :: added %d rows, changed %d rows, and removed %d rows .", len(added), len(changed), len(removed))
+	logrus.Debugf("query :: source %d rows and target %d rows. compare hashed rows :: %d added , %d changed , and %d removed .", len(srcHashed), len(dstHashed), len(added), len(changed), len(removed))
 	if len(added)+len(changed)+len(removed) < 1 {
 		return nil
 	}
