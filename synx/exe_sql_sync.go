@@ -101,7 +101,7 @@ func getSqlSync(tx *sql.Tx, srcDatabase, dstDatabase, table string, isSync bool)
 	}
 
 	cols, err := asql.Query(tx, `
-		SELECT TT.column_name, TT.column_type, TT.is_primary, XX.is_nullable, XX.is_identity, TT.policy_name, TT.replace_code, TT.is_exactly_match
+		SELECT TT.column_name, TT.column_type, TT.is_primary, XX.is_nullable, XX.is_identity, TT.policy_code, TT.policy_name, TT.replace_code, TT.is_exactly_match
 		FROM (
 			SELECT T.column_id, T.column_name, T.column_type, T.is_primary, X.code AS policy_code, X.name AS policy_name, X.replace_code, X.is_exactly_match
 			FROM syn_src_policy T
