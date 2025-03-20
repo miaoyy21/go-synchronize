@@ -3,18 +3,20 @@
     {{- if or .CreateTable .AddColumn .ModifyColumn }}
         {{- if .CreateTable }}
 -- 在数据库 {{ .Database }} 中创建数据库表 {{ .Table }}
-CREATE TABLE {{ .Database }}.dbo.{{ .Table }} (
-            {{- range $index, $column := .CreateTable }}
-    {{ $column.Name | printf "[%s]" | printf "%-16s" }} {{ $column.Type | printf "%-16s" }} {{if $column.IsIdentity}} IDENTITY(1,1) {{ end }} {{ if $column.IsNullable }}NULL{{ else }}NOT NULL{{ end }},
-            {{- end }}
-    {{ "_flag_" | printf "[%s]" | printf "%-16s" }} {{ "VARCHAR(1)" | printf "%-16s" }}  NULL,
-    {{if .Primary.Name}}CONSTRAINT {{ .Table }}_PK PRIMARY KEY ([{{ .Primary.Name }}]) {{ end }}
-);
-        {{ end -}}
+IF OBJECT_ID('{{ .Table }}', 'U') IS NULL
+    CREATE TABLE {{ .Database }}.dbo.{{ .Table }} (
+                {{- range $index, $column := .CreateTable }}
+        {{ $column.Name | printf "[%s]" | printf "%-16s" }} {{ $column.Type | printf "%-16s" }} {{if $column.IsIdentity}} IDENTITY(1,1) {{ end }} {{ if $column.IsNullable }}NULL{{ else }}NOT NULL{{ end }},
+                {{- end }}
+        {{ "_flag_" | printf "[%s]" | printf "%-16s" }} {{ "VARCHAR(1)" | printf "%-16s" }}  NULL,
+        {{if .Primary.Name}}CONSTRAINT {{ .Table }}_PK PRIMARY KEY ([{{ .Primary.Name }}]) {{ end }}
+    );
+            {{ end -}}
         {{- if .AddColumn }}
 -- 在数据库表 {{ .Database }}.dbo.{{ .Table }} 中添加字段
             {{- range $column := .AddColumn }}
-ALTER TABLE {{ $.Database }}.dbo.{{ $.Table }} ADD [{{ $column.Name }}] {{ $column.Type }} {{ if $column.IsNullable }}NULL{{ else }}NOT NULL{{ end }};
+IF NOT EXISTS (SELECT 1 FROM {{ $.Database }}.sys.columns WHERE object_id = OBJECT_ID('{{ $.Table }}') AND name = '{{ $column.Name }}')
+    ALTER TABLE {{ $.Database }}.dbo.{{ $.Table }} ADD [{{ $column.Name }}] {{ $column.Type }} {{ if $column.IsNullable }}NULL{{ else }}NOT NULL{{ end }};
             {{- end }}
         {{ end -}}
         {{- if .ModifyColumn }}
