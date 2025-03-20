@@ -30,6 +30,7 @@ ALTER TABLE {{ $.Database }}.dbo.{{ $.Table }} ALTER COLUMN [{{ $column.Name }}]
     {{ end -}}
     {{- if $.Flag}}
 -- 在 {{ $.Database }}.dbo.{{ $.Table }} 中添加数据库标识符字段
+IF NOT EXISTS (SELECT 1 FROM {{ $.Database }}.sys.columns WHERE object_id = OBJECT_ID('{{ $.Table }}') AND name = '_flag_')
 ALTER TABLE {{ $.Database }}.dbo.{{ $.Table }} ADD [_flag_] VARCHAR(1) NULL;
     {{ end -}}
 {{- else }}
