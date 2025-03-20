@@ -66,6 +66,8 @@ func ExeSqlSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface{}
 			}
 
 			buf := new(bytes.Buffer)
+
+			buf.WriteString(fmt.Sprintf("USE %s;\n", rows[0]["database_name"]))
 			for _, row := range rows {
 				data, err := getSqlSync(tx, database, row["database_name"], row["table_name"], row["is_sync"] == "1")
 				if err != nil {

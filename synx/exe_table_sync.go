@@ -81,6 +81,8 @@ func ExeTableSync(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (interface
 			})
 
 			buf := new(bytes.Buffer)
+
+			buf.WriteString(fmt.Sprintf("USE %s;\n", rows[0]["database_name"]))
 			for _, data := range allData {
 				buf.WriteString(getTemplate("sync_table.tpl", data))
 			}

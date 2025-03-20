@@ -9,7 +9,7 @@ DISABLE TRIGGER {{ $trigger }} ON {{ $.DstDatabase }}.dbo.{{ $.Table }};
     {{ end }}
     {{- if .HasIdentity }}
 -- 禁用数据库表 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的所有启用的触发器
-USE {{ $.DstDatabase }}; SET IDENTITY_INSERT {{ $.DstDatabase }}.dbo.{{ $.Table }} ON;
+SET IDENTITY_INSERT {{ $.DstDatabase }}.dbo.{{ $.Table }} ON;
     {{- end }}
 
 -- 更新 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的数据标识符
@@ -49,7 +49,7 @@ FROM {{ .SrcDatabase }}.dbo.{{ .Table }} T
 WHERE NOT EXISTS (SELECT 1 FROM {{ .DstDatabase }}.dbo.{{ .Table }} X WHERE ISNULL(X._flag_, '') = '{{ $.SrcFlag }}');
     {{ if .HasIdentity }}
 -- 禁止 {{ $.DstDatabase }}.dbo.{{ $.Table }} 根据标识插入数据
-USE {{ $.DstDatabase }}; SET IDENTITY_INSERT {{ $.DstDatabase }}.dbo.{{ $.Table }} OFF;
+SET IDENTITY_INSERT {{ $.DstDatabase }}.dbo.{{ $.Table }} OFF;
     {{ end }}
     {{- if .Triggers }}
 -- 恢复数据库表 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的所有启用的触发器
