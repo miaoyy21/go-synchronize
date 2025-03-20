@@ -184,8 +184,9 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 			rollback()
 			return err
 		}
+
+		logrus.Debugf("target table %q with %q inserted ...", dstTable, key)
 	}
-	logrus.Debugf("%d rows added ...", len(added))
 
 	// Changed
 	for key := range changed {
@@ -214,8 +215,9 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 			rollback()
 			return err
 		}
+
+		logrus.Debugf("target table %q with %q updated ...", dstTable, key)
 	}
-	logrus.Debugf("%d rows changed ...", len(changed))
 
 	// Removed
 	for key := range removed {
@@ -224,8 +226,9 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 			rollback()
 			return err
 		}
+
+		logrus.Debugf("target table %q with %q deleted ...", dstTable, key)
 	}
-	logrus.Debugf("%d rows removed ...", len(removed))
 
 	return dstTx.Commit()
 }
