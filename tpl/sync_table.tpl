@@ -23,7 +23,7 @@ IF NOT EXISTS (SELECT 1 FROM {{ $.Database }}.sys.columns WHERE object_id = OBJE
             {{- range $column := .ModifyColumn }}
 -- 修改数据库表 {{ $.Database }}.dbo.{{ $.Table }} [{{ $column.Name }}] 数据类型，由 {{ $column.TypeOrg }} 变成 {{ $column.Type }}
 ALTER TABLE {{ $.Database }}.dbo.{{ $.Table }} ALTER COLUMN [{{ $column.Name }}] {{ $column.Type }} {{ if $column.IsNullable }}NULL{{ else }}NOT NULL{{ end }};
-            {{- end }}
+            {{ end }}
         {{ end -}}
     {{- else if not $.Flag }}
 -- 数据库表 {{ .Database }}.dbo.{{ .Table }} 没有变化，自动忽略
