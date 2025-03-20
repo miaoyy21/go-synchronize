@@ -10,7 +10,11 @@ DISABLE TRIGGER {{ $trigger }} ON {{ $.DstDatabase }}.dbo.{{ $.Table }};
     {{- if .HasIdentity }}
 -- 禁用数据库表 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的所有启用的触发器
 SET IDENTITY_INSERT {{ $.DstDatabase }}.dbo.{{ $.Table }} ON;
-    {{ end }}
+    {{- end }}
+
+-- 更新 {{ $.DstDatabase }}.dbo.{{ $.Table }} 的数据标识符
+UPDATE [{{ .DstDatabase }}].[dbo].[{{ .Table }}] SET [_flag_] = '{{ .DstFlag }}' WHERE [_flag_] IS NULL;
+
 -- 将 {{ .SrcDatabase }}.dbo.{{ .Table }} 的数据记录添加到 {{ .DstDatabase }}.dbo.{{ .Table }}
 INSERT INTO {{ .DstDatabase }}.dbo.{{ .Table }} (
     {{- range $index, $column := .Columns -}}
