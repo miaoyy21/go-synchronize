@@ -11,7 +11,12 @@ func MdSrcPolicy(tx *sql.Tx, w http.ResponseWriter, r *http.Request) (res interf
 	switch r.Method {
 	case http.MethodGet:
 		database, table := r.FormValue("database_name"), r.FormValue("table_name")
-		return asql.Query(tx, "SELECT * FROM syn_src_policy WHERE database_name = ?  AND table_name = ? ORDER BY column_id ASC", database, table)
+		return asql.Query(tx, `
+			SELECT T.id, T.column_name, T.column_type, T.column_policy, X.is_primary, X.is_identity, X.is_nullable, T.create_at 
+			FROM syn_src_policy T 
+				LEFT JOIN syn_table_column X ON X.database_name = T.database_name AND X.table_name = T.table_name AND X.column_name = T.column_name 
+			WHERE T.database_name = ?  AND T.table_name = ? ORDER BY T.column_id ASC
+		`, database, table)
 	default:
 		operation := r.PostFormValue("operation")
 

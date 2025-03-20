@@ -22,11 +22,12 @@ func Run(db *sql.DB) {
 			logrus.Debugf("执行定时任务 ... ")
 
 			var id, srcDriver, srcDatasource, srcSql string
-			var dstDriver, dstDatasource, dstSql, dstTable, dstIdField string
+			var dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields string
 
 			query := "SELECT TA.id, \n" +
 				"	M1.driver AS src_driver, M1.datasource AS src_datasource, TA.src_sql, \n" +
-				"	M2.driver AS dst_driver, M2.datasource AS dst_datasource, TA.dst_sql, TA.dst_table, TA.dst_id_field \n" +
+				"	M2.driver AS dst_driver, M2.datasource AS dst_datasource, TA.dst_sql, \n" +
+				"	TA.dst_table, TA.dst_id_field, TA.dst_compare_fields \n" +
 				"FROM syn_datasource_sync TA \n" +
 				"	INNER JOIN syn_datasource M1 ON TA.src_ds_code = M1.code \n" +
 				"	INNER JOIN syn_datasource M2 ON TA.dst_ds_code = M2.code \n" +
@@ -35,7 +36,7 @@ func Run(db *sql.DB) {
 				"ORDER BY TA.sync_at ASC,TA.order_ ASC"
 
 			if err := db.QueryRow(query, SyncStatusExecuting, SyncStatusWaiting).
-				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField); err != nil {
+				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField, &dstCompareFields); err != nil {
 				if err == sql.ErrNoRows {
 					continue
 				}
