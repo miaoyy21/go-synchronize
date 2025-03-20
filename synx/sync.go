@@ -202,12 +202,12 @@ func initDB(driver string, datasource string) (*sql.Tx, error) {
 	// 数据库链接
 	db, err := sql.Open(driver, datasource)
 	if err != nil {
-		logrus.Fatalf("sql.Open() Failure :: %s", err.Error())
+		panic(fmt.Sprintf("sql.Open(%q,%q) fail :: %s", driver, datasource, err.Error()))
 	}
 
 	// Ping ...
 	if err := db.Ping(); err != nil {
-		logrus.Fatalf("db.Ping() Failure :: %s", err.Error())
+		panic(fmt.Sprintf("db.Ping() fail :: %s", err.Error()))
 	}
 
 	return db.Begin()
@@ -217,16 +217,16 @@ func getSqlFields(originalSql string) []string {
 	originalSql = strings.TrimSpace(originalSql)
 	start := strings.Index(strings.ToLower(originalSql), "select ")
 	if start < 0 {
-		panic(fmt.Sprintf("invalid SQL Statement %s", originalSql))
+		panic(fmt.Sprintf("invalid SQL Statement %q", originalSql))
 	}
 
 	end := strings.Index(strings.ToLower(originalSql), " from ")
 	if end < 1 {
-		logrus.Panicf("invalid SQL Statement %s", originalSql)
+		panic(fmt.Sprintf("invalid SQL Statement %q", originalSql))
 	}
 
 	if strings.EqualFold(strings.TrimSpace(originalSql[7:end]), "*") {
-		panic(fmt.Sprintf("invalid SQL Statement %s with * fields", originalSql))
+		panic(fmt.Sprintf("invalid SQL Statement %q with * fields", originalSql))
 	}
 
 	oFields := strings.Split(originalSql[7:end], ",")
@@ -242,12 +242,12 @@ func getCompareSql(originalSql string, dstIdField, compareFields string) string 
 	originalSql = strings.TrimSpace(originalSql)
 	start := strings.Index(strings.ToLower(originalSql), "select ")
 	if start < 0 {
-		panic(fmt.Sprintf("invalid SQL Statement %s", originalSql))
+		panic(fmt.Sprintf("invalid SQL Statement %q", originalSql))
 	}
 
 	end := strings.Index(strings.ToLower(originalSql), " from ")
 	if end < 1 {
-		panic(fmt.Sprintf("invalid SQL Statement %s", originalSql))
+		panic(fmt.Sprintf("invalid SQL Statement %q", originalSql))
 	}
 
 	oFields := strings.Split(compareFields, ",")
