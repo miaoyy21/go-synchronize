@@ -23,7 +23,6 @@ INSERT INTO {{ .DstDatabase }}.dbo.{{ .Table }} (
     {{- end -}}
 )
 SELECT {{ range $index, $column := .Columns }}
-/* {{ $column }} */
         {{- if eq $column.Name "_flag_" }}
     '{{ $.SrcFlag }}'
         {{- else }}
