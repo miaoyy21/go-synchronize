@@ -50,7 +50,7 @@ func Run(db *sql.DB) {
 				continue
 			}
 
-			if err := run(srcDriver, srcDatasource, srcSql, dstDriver, dstDatasource, dstSql, dstTable, dstIdField); err != nil {
+			if err := run(srcDriver, srcDatasource, srcSql, dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields); err != nil {
 				logrus.Errorf("run() failure :: %s", err.Error())
 
 				if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ? AND sync_status = ? ", SyncStatusWaiting, id, SyncStatusExecuting); err != nil {
@@ -68,7 +68,53 @@ func Run(db *sql.DB) {
 	}
 }
 
-func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField string) error {
+func getSqlFields(originalSql string) []string {
+	originalSql = strings.TrimSpace(originalSql)
+	start := strings.Index(strings.ToLower(originalSql), "select ")
+	if start < 0 {
+		logrus.Panicf("invalid SQL statements %s", originalSql)
+	}
+
+	end := strings.Index(strings.ToLower(originalSql), " from ")
+	if end < 1 {
+		logrus.Panicf("invalid SQL statements %s", originalSql)
+	}
+
+	oFields := strings.Split(originalSql[7:end], ",")
+	nFields := make([]string, 0, len(oFields))
+	for _, oField := range oFields {
+		nFields = append(nFields, strings.TrimSpace(oField))
+	}
+
+	return nFields
+}
+
+func getCompareSql(originalSql string, dstIdField, compareFields string) string {
+	originalSql = strings.TrimSpace(originalSql)
+	start := strings.Index(strings.ToLower(originalSql), "select ")
+	if start < 0 {
+		logrus.Panicf("invalid SQL statements %s", originalSql)
+	}
+
+	end := strings.Index(strings.ToLower(originalSql), " from ")
+	if end < 1 {
+		logrus.Panicf("invalid SQL statements %s", originalSql)
+	}
+
+	return fmt.Sprintf("%s %s, %s %s", originalSql[:6], dstIdField, compareFields, originalSql[end:])
+}
+
+func getWhereSql(originalSql string, dstIdField string) string {
+	originalSql = strings.TrimSpace(originalSql)
+	where := strings.Index(strings.ToLower(originalSql), " where ")
+	if where < 0 {
+		return fmt.Sprintf("%s WHERE %s = ?", originalSql, dstIdField)
+	}
+
+	return fmt.Sprintf("%s WHERE %s = ? AND %s", originalSql[:where], dstIdField, originalSql[where+7:])
+}
+
+func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields string) error {
 	// src
 	srcTx, err := initDB(srcDriver, srcDatasource)
 	if err != nil {
@@ -88,20 +134,22 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 	}
 
 	// src cols && rows
-	_, srcHashed, srcRows, err := asql.QueryHashed(srcTx, dstIdField, srcSql)
+	srcHashed, err := asql.QueryHashed(srcTx, dstIdField, getCompareSql(srcSql, dstIdField, dstCompareFields))
 	if err != nil {
 		rollback()
 		return err
 	}
-	logrus.Debugf("source %d rows .", len(srcHashed))
 
 	// dst cols && rows
-	dstCols, dstHashed, _, err := asql.QueryHashed(dstTx, dstIdField, dstSql)
+	dstHashed, err := asql.QueryHashed(dstTx, dstIdField, getCompareSql(dstSql, dstIdField, dstCompareFields))
 	if err != nil {
 		rollback()
 		return err
 	}
-	logrus.Debugf("target %d rows .", len(dstHashed))
+	logrus.Debugf("query :: source %d rows, and target %d rows .", len(srcHashed), len(dstHashed))
+
+	// Insert or Update Fields
+	dstFields := getSqlFields(dstSql)
 
 	// compare src && dst Map
 	added, changed, removed := base.CompareMap(dstHashed, srcHashed)
@@ -112,13 +160,18 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 
 	// Added
 	for key := range added {
-		values := srcRows[key]
+		values, err := asql.Query(srcTx, getWhereSql(srcSql, dstIdField), key)
+		if err != nil {
+			return err
+		} else if len(values) != 1 {
+			return fmt.Errorf("unexpect %d rows", len(values))
+		}
 
-		query := fmt.Sprintf("INSERT INTO %s(%s) VALUES (%s)", dstTable, strings.Join(dstCols, ","), strings.TrimRight(strings.Repeat("?,", len(dstCols)), ","))
+		query := fmt.Sprintf("INSERT INTO %s(%s) VALUES (%s)", dstTable, strings.Join(dstFields, ","), strings.TrimRight(strings.Repeat("?,", len(dstFields)), ","))
 
-		args := make([]interface{}, 0, len(dstCols))
-		for _, col := range dstCols {
-			value, ok := values[col]
+		args := make([]interface{}, 0, len(dstFields))
+		for _, col := range dstFields {
+			value, ok := values[0][col]
 			if !ok {
 				args = append(args, nil)
 				continue
@@ -136,10 +189,17 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 
 	// Changed
 	for key := range changed {
-		values, args := srcRows[key], make([]interface{}, 0, len(dstCols))
+		values, err := asql.Query(srcTx, getWhereSql(srcSql, dstIdField), key)
+		if err != nil {
+			return err
+		} else if len(values) != 1 {
+			return fmt.Errorf("unexpect %d rows", len(values))
+		}
 
-		for _, col := range dstCols {
-			value, ok := values[col]
+		args := make([]interface{}, 0, len(dstFields))
+
+		for _, col := range dstFields {
+			value, ok := values[0][col]
 			if !ok {
 				args = append(args, nil)
 				continue
@@ -149,13 +209,13 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 		}
 		args = append(args, key)
 
-		query := fmt.Sprintf("UPDATE %s SET %s = ? WHERE %s = ?", dstTable, strings.Join(dstCols, " = ?,"), dstIdField)
+		query := fmt.Sprintf("UPDATE %s SET %s = ? WHERE %s = ?", dstTable, strings.Join(dstFields, " = ?,"), dstIdField)
 		if _, err := dstTx.Exec(query, args...); err != nil {
 			rollback()
 			return err
 		}
 	}
-	logrus.Debugf("%d rows changed ...", len(added))
+	logrus.Debugf("%d rows changed ...", len(changed))
 
 	// Removed
 	for key := range removed {
@@ -165,7 +225,7 @@ func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstS
 			return err
 		}
 	}
-	logrus.Debugf("%d rows removed ...", len(added))
+	logrus.Debugf("%d rows removed ...", len(removed))
 
 	return dstTx.Commit()
 }

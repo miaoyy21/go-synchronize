@@ -1,6 +1,7 @@
 package asql
 
 import (
+	"bytes"
 	"crypto/md5"
 	"database/sql"
 	"encoding/hex"
@@ -84,34 +85,18 @@ func Query(tx *sql.Tx, query string, args ...interface{}) ([]map[string]string, 
 	return entries, nil
 }
 
-func QueryHashed(tx *sql.Tx, idField string, query string, args ...interface{}) ([]string, map[string]string, map[string]map[string]string, error) {
-	if logrus.IsLevelEnabled(logrus.DebugLevel) {
-		var prefix string
-
-		// 格式化SQL输出
-		for i := 5; i > 1; i-- {
-			prefix = fmt.Sprintf("\n%s", strings.Repeat("\t", i))
-			if strings.HasPrefix(query, prefix) {
-				break
-			}
-		}
-		query = strings.ReplaceAll(query, prefix, "\n\t")
-
-		query = strings.TrimRightFunc(query, unicode.IsSpace)
-		logrus.Debugf("%s %s", fnArgs(args...), query)
-	}
-
+func QueryHashed(tx *sql.Tx, idField string, query string, args ...interface{}) (map[string]string, error) {
 	// Rows
 	rows, err := tx.Query(query, args...)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	defer rows.Close()
 
 	// Columns
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	values := make([]sql.RawBytes, len(columns))
@@ -120,62 +105,37 @@ func QueryHashed(tx *sql.Tx, idField string, query string, args ...interface{}) 
 		valuePts[i] = &values[i]
 	}
 
-	hashed, entries, num := make(map[string]string), make(map[string]map[string]string, 0), 0
+	hashed := make(map[string]string)
 	for rows.Next() {
-		var id string
-
 		if err := rows.Scan(valuePts...); err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 
-		entry, full := make(map[string]string), make([]byte, 0)
+		full, id := make([]byte, 0), sql.RawBytes{}
 		for i, col := range columns {
 			if values[i] == nil {
 				full = append(full, 0)
 				continue
 			}
 
-			value := string(values[i])
-
-			// 隐式转换时间格式
-			if len(value) == len("2006-01-02T15:04:05Z") {
-				dt, err := time.Parse(time.RFC3339, value)
-				if err == nil {
-					if dt.Hour()+dt.Minute()+dt.Second() == 0 {
-						value = dt.Format("2006-01-02")
-					} else {
-						value = dt.Format("2006-01-02 15:04:05")
-					}
-				}
-			}
-
 			if strings.EqualFold(col, idField) {
-				id = value
+				id = values[i]
 			} else {
 				full = append(full, values[i]...)
 			}
-
-			entry[strings.ToLower(col)] = value
 		}
 
-		if len(strings.TrimSpace(id)) < 1 {
-			return nil, nil, nil, fmt.Errorf("missing id of %#v", entry)
+		if len(bytes.TrimSpace(id)) < 1 {
+			return nil, fmt.Errorf("missing id field value")
 		}
-
-		num++
 
 		h5 := md5.Sum(full)
-		hashed[id] = hex.EncodeToString(h5[:])
-		entries[id] = entry
+		hashed[string(id)] = hex.EncodeToString(h5[:])
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
-	if num != len(entries) {
-		return nil, nil, nil, fmt.Errorf("array entries %d rows, but map entries %d rows", num, len(entries))
-	}
-
-	return columns, hashed, entries, nil
+	return hashed, nil
 }
