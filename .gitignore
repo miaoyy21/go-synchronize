@@ -1,6 +1,7 @@
 
 .idea/*
 store/*
+www/*
 
 synchronize_darwin_arm64
 synchronize_linux_386
