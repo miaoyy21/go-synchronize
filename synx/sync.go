@@ -19,102 +19,66 @@ func Run(db *sql.DB) {
 	for {
 		select {
 		case <-ticker.C:
-			logrus.Debugf("执行定时任务 ... ")
-
-			var id, srcDriver, srcDatasource, srcSql string
-			var dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields string
-
-			query := "SELECT TA.id, \n" +
-				"	M1.driver AS src_driver, M1.datasource AS src_datasource, TA.src_sql, \n" +
-				"	M2.driver AS dst_driver, M2.datasource AS dst_datasource, TA.dst_sql, \n" +
-				"	TA.dst_table, TA.dst_id_field, TA.dst_compare_fields \n" +
-				"FROM syn_datasource_sync TA \n" +
-				"	INNER JOIN syn_datasource M1 ON TA.src_ds_code = M1.code \n" +
-				"	INNER JOIN syn_datasource M2 ON TA.dst_ds_code = M2.code \n" +
-				"WHERE NOT EXISTS (SELECT 1 FROM syn_datasource_sync TB WHERE TB.sync_status = ?) \n" +
-				"	AND TA.sync_status = ? \n" +
-				"ORDER BY TA.sync_at ASC,TA.order_ ASC"
-
-			if err := db.QueryRow(query, SyncStatusExecuting, SyncStatusWaiting).
-				Scan(&id, &srcDriver, &srcDatasource, &srcSql, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField, &dstCompareFields); err != nil {
-				if err == sql.ErrNoRows {
-					continue
-				}
-
-				logrus.Errorf("asql.QueryRow() failure :: %s", err.Error())
-				continue
-			}
-
-			if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ?", SyncStatusExecuting, id); err != nil {
-				logrus.Errorf("asql.Update() failure :: %s", err.Error())
-				continue
-			}
-
-			if err := run(srcDriver, srcDatasource, srcSql, dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields); err != nil {
-				logrus.Errorf("run() failure :: %s", err.Error())
-
-				if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ? AND sync_status = ? ", SyncStatusWaiting, id, SyncStatusExecuting); err != nil {
-					logrus.Errorf("asql.Update() failure :: %s", err.Error())
-				}
-
-				continue
-			}
-
-			if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ?, sync_at = ? WHERE id = ? AND sync_status = ?", SyncStatusWaiting, asql.GetDateTime(), id, SyncStatusExecuting); err != nil {
-				logrus.Errorf("asql.Update() failure :: %s", err.Error())
-				continue
-			}
+			run(db)
 		}
 	}
 }
 
-func getSqlFields(originalSql string) []string {
-	originalSql = strings.TrimSpace(originalSql)
-	start := strings.Index(strings.ToLower(originalSql), "select ")
-	if start < 0 {
-		logrus.Panicf("invalid SQL statements %s", originalSql)
+func run(db *sql.DB) {
+	var id, srcDriver, srcDatasource, srcSql string
+	var dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields string
+
+	defer func() {
+		if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ? AND sync_status = ? ", SyncStatusWaiting, id, SyncStatusExecuting); err != nil {
+			logrus.Errorf("asql.Update() failure :: %s", err.Error())
+		}
+
+		if err := recover(); err != nil {
+			logrus.Errorf("panic :: %#v", err)
+		}
+	}()
+
+	logrus.Debugf("执行定时任务 ... ")
+
+	query := "SELECT TA.id, \n" +
+		"	M1.driver AS src_driver, M1.datasource AS src_datasource, TA.src_sql, \n" +
+		"	M2.driver AS dst_driver, M2.datasource AS dst_datasource, TA.dst_sql, \n" +
+		"	TA.dst_table, TA.dst_id_field, TA.dst_compare_fields \n" +
+		"FROM syn_datasource_sync TA \n" +
+		"	INNER JOIN syn_datasource M1 ON TA.src_ds_code = M1.code \n" +
+		"	INNER JOIN syn_datasource M2 ON TA.dst_ds_code = M2.code \n" +
+		"WHERE NOT EXISTS (SELECT 1 FROM syn_datasource_sync TB WHERE TB.sync_status = ?) \n" +
+		"	AND TA.sync_status = ? \n" +
+		"ORDER BY TA.sync_at ASC,TA.order_ ASC"
+
+	if err := db.QueryRow(query, SyncStatusExecuting, SyncStatusWaiting).
+		Scan(&id, &srcDriver, &srcDatasource, &srcSql, &dstDriver, &dstDatasource, &dstSql, &dstTable, &dstIdField, &dstCompareFields); err != nil {
+		if err == sql.ErrNoRows {
+			return
+		}
+
+		logrus.Errorf("asql.QueryRow() failure :: %s", err.Error())
+		return
 	}
 
-	end := strings.Index(strings.ToLower(originalSql), " from ")
-	if end < 1 {
-		logrus.Panicf("invalid SQL statements %s", originalSql)
+	if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_status = ? WHERE id = ?", SyncStatusExecuting, id); err != nil {
+		logrus.Errorf("asql.Update() failure :: %s", err.Error())
+		return
 	}
 
-	oFields := strings.Split(originalSql[7:end], ",")
-	nFields := make([]string, 0, len(oFields))
-	for _, oField := range oFields {
-		nFields = append(nFields, strings.TrimSpace(oField))
+	if err := runSync(srcDriver, srcDatasource, srcSql, dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields); err != nil {
+		logrus.Errorf("runSync() failure :: %s", err.Error())
+
+		return
 	}
 
-	return nFields
+	if _, err := db.Exec("UPDATE syn_datasource_sync SET sync_at = ? WHERE id = ? AND sync_status = ?", asql.GetDateTime(), id, SyncStatusExecuting); err != nil {
+		logrus.Errorf("asql.Update() failure :: %s", err.Error())
+		return
+	}
 }
 
-func getCompareSql(originalSql string, dstIdField, compareFields string) string {
-	originalSql = strings.TrimSpace(originalSql)
-	start := strings.Index(strings.ToLower(originalSql), "select ")
-	if start < 0 {
-		logrus.Panicf("invalid SQL statements %s", originalSql)
-	}
-
-	end := strings.Index(strings.ToLower(originalSql), " from ")
-	if end < 1 {
-		logrus.Panicf("invalid SQL statements %s", originalSql)
-	}
-
-	return fmt.Sprintf("%s %s, %s %s", originalSql[:6], dstIdField, compareFields, originalSql[end:])
-}
-
-func getWhereSql(originalSql string, dstIdField string) string {
-	originalSql = strings.TrimSpace(originalSql)
-	where := strings.Index(strings.ToLower(originalSql), " where ")
-	if where < 0 {
-		return fmt.Sprintf("%s WHERE %s = ?", originalSql, dstIdField)
-	}
-
-	return fmt.Sprintf("%s WHERE %s = ? AND %s", originalSql[:where], dstIdField, originalSql[where+7:])
-}
-
-func run(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields string) error {
+func runSync(srcDriver, srcDatasource, srcSql string, dstDriver, dstDatasource, dstSql, dstTable, dstIdField, dstCompareFields string) error {
 	// src
 	srcTx, err := initDB(srcDriver, srcDatasource)
 	if err != nil {
@@ -247,4 +211,62 @@ func initDB(driver string, datasource string) (*sql.Tx, error) {
 	}
 
 	return db.Begin()
+}
+
+func getSqlFields(originalSql string) []string {
+	originalSql = strings.TrimSpace(originalSql)
+	start := strings.Index(strings.ToLower(originalSql), "select ")
+	if start < 0 {
+		panic(fmt.Sprintf("invalid SQL Statement %s", originalSql))
+	}
+
+	end := strings.Index(strings.ToLower(originalSql), " from ")
+	if end < 1 {
+		logrus.Panicf("invalid SQL Statement %s", originalSql)
+	}
+
+	if strings.EqualFold(strings.TrimSpace(originalSql[7:end]), "*") {
+		panic(fmt.Sprintf("invalid SQL Statement %s with * fields", originalSql))
+	}
+
+	oFields := strings.Split(originalSql[7:end], ",")
+	nFields := make([]string, 0, len(oFields))
+	for _, oField := range oFields {
+		nFields = append(nFields, strings.TrimSpace(oField))
+	}
+
+	return nFields
+}
+
+func getCompareSql(originalSql string, dstIdField, compareFields string) string {
+	originalSql = strings.TrimSpace(originalSql)
+	start := strings.Index(strings.ToLower(originalSql), "select ")
+	if start < 0 {
+		panic(fmt.Sprintf("invalid SQL Statement %s", originalSql))
+	}
+
+	end := strings.Index(strings.ToLower(originalSql), " from ")
+	if end < 1 {
+		panic(fmt.Sprintf("invalid SQL Statement %s", originalSql))
+	}
+
+	oFields := strings.Split(compareFields, ",")
+	nFields := make([]string, 0, len(oFields))
+
+	nFields = append(nFields, dstIdField)
+	for _, oField := range oFields {
+		nFields = append(nFields, strings.TrimSpace(oField))
+	}
+
+	return fmt.Sprintf("%s %s %s", originalSql[:6], strings.Join(nFields, ", "), originalSql[end:])
+}
+
+func getWhereSql(originalSql string, dstIdField string) string {
+	originalSql = strings.TrimSpace(originalSql)
+	where := strings.Index(strings.ToLower(originalSql), " where ")
+	if where < 0 {
+		return fmt.Sprintf("%s WHERE %s = ?", originalSql, dstIdField)
+	}
+
+	return fmt.Sprintf("%s WHERE %s = ? AND (%s)", originalSql[:where], dstIdField, originalSql[where+7:])
 }
