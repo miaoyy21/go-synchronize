@@ -21,6 +21,7 @@
                     WHEN 56 THEN 'INT'
                     WHEN 61 THEN 'DATETIME'
                     WHEN 62 THEN 'FLOAT'
+                    WHEN 99 THEN 'NTEXT'
                     WHEN 106 THEN 'DECIMAL'
                     WHEN 108 THEN 'NUMERIC'
                     WHEN 127 THEN 'BIGINT'
